@@ -3,27 +3,23 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Register</title>
+  <title>Request to Join</title>
   <link rel="stylesheet" href="css/auth.css" />
 </head>
 <body>
   <div class="auth-navbar">
     <div class="nav-logo">Piget</div>
-    <div class="nav-links">
-      <a href="login.html">Login</a>
-    </div>
   </div>
+
   <div class="login-container">
-    <h2 class="login-heading">Request to Join Piget</h2>
-    <form id="formRequest" class="login-form">
+    <h1 class="login-heading">Request to Join</h1>
+    <form action="/submit-request" method="POST" class="login-form">
       <input type="text" name="username" placeholder="Desired Username" required />
-      <input type="number" name="age" placeholder="Your Age" required />
+      <input type="number" name="age" placeholder="Age" required />
       <input type="text" name="discord" placeholder="Discord Username" required />
-      <textarea name="reason" placeholder="Why do you want to join?" rows="3" required></textarea>
+      <textarea name="reason" placeholder="Why do you want to join?" required></textarea>
       <button type="submit">Submit Request</button>
     </form>
-    <div id="popup" style="display:none;">Request submitted successfully!</div>
   </div>
-  <script src="form.js"></script>
 </body>
 </html>
