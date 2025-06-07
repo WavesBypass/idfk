@@ -37,36 +37,51 @@ initDB();
 // Register Route
 app.post('/register', async (req, res) => {
   const { username, password } = req.body;
+  console.log("Registering user:", username);
+
   try {
     const hashed = await bcrypt.hash(password, 10);
-    await pool.query('INSERT INTO users (username, password) VALUES ($1, $2)', [username, hashed]);
-    res.redirect('/login.html');
+    await pool.query(
+      'INSERT INTO users (username, password) VALUES ($1, $2)',
+      [username, hashed]
+    );
+    res.status(200).json({ success: true });
   } catch (err) {
-    res.status(500).send('Username taken or error occurred.');
+    console.error("❌ Register error:", err);
+    res.status(500).json({ error: 'Username taken or error occurred.' });
   }
 });
 
 // Login Route
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
+  console.log("Login attempt:", username);
+
   try {
     const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
-    if (result.rows.length === 0) return res.status(401).send('Invalid credentials');
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
 
     const user = result.rows[0];
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return res.status(401).send('Invalid credentials');
+    if (!valid) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
 
     req.session.userId = user.id;
-    res.redirect('/dashboard.html');
+    res.status(200).json({ success: true });
   } catch (err) {
-    res.status(500).send('Login failed');
+    console.error("❌ Login error:", err);
+    res.status(500).json({ error: 'Login failed' });
   }
 });
 
 // Dashboard Route
 app.get('/dashboard', (req, res) => {
-  if (!req.session.userId) return res.redirect('/login.html');
+  if (!req.session.userId) {
+    return res.redirect('/login.html');
+  }
   res.sendFile(__dirname + '/public/dashboard.html');
 });
 
