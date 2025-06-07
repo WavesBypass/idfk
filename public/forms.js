@@ -1,26 +1,35 @@
+const form = document.getElementById('registerForm');
+const popup = document.getElementById('popup-message');
 
-fetch('/forms')
-  .then(res => res.json())
-  .then(data => {
-    const container = document.getElementById('requests');
-    if (!data.length) {
-      container.innerHTML = "<p>No pending requests.</p>";
-      return;
-    }
-    data.forEach(req => {
-      container.innerHTML += `
-        <div class="card">
-          <h3>${req.username}</h3>
-          <p><strong>Age:</strong> ${req.age}</p>
-          <p><strong>Discord:</strong> ${req.discord}</p>
-          <p><strong>Reason:</strong> ${req.reason}</p>
-          <form method="POST" action="/approve/${req.id}"><button class="approve">Approve</button></form>
-          <form method="POST" action="/deny/${req.id}"><button class="deny">Deny</button></form>
-        </div>
-      `;
+function showPopup(message, isError = false) {
+  popup.textContent = message;
+  popup.className = isError ? 'error' : '';
+  popup.style.display = 'block';
+  setTimeout(() => {
+    popup.style.display = 'none';
+  }, 4000);
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const formData = new FormData(form);
+  const data = {};
+  formData.forEach((value, key) => data[key] = value);
+
+  try {
+    const response = await fetch('/submit-request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
     });
-  })
-  .catch(err => {
-    document.getElementById('requests').innerHTML = "<p>Error loading requests.</p>";
-    console.error(err);
-  });
+    if (response.ok) {
+      showPopup('Request submitted successfully!');
+      form.reset();
+    } else {
+      const text = await response.text();
+      showPopup('Error: ' + text, true);
+    }
+  } catch (error) {
+    showPopup('Network error, please try again.', true);
+  }
+});
