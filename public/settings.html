@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Piget | Settings</title>
+  <link rel="stylesheet" href="main.css" />
+</head>
+<body>
+  <div class="navbar">
+    <div class="nav-logo">Piget</div>
+    <div>
+      <a href="stats.html">Stats</a>
+      <a href="leaderboard.html">Leaderboard</a>
+      <a href="market.html">Market</a>
+      <a href="inventory.html">Inventory</a>
+      <a href="settings.html">Settings</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <h1>Settings</h1>
+    <label for="background-select">Select Background:</label>
+    <select id="background-select">
+      <option value="default">Default</option>
+      <option value="dark">Dark</option>
+    </select>
+    <button id="apply-btn">Apply Changes</button>
+  </div>
+
+  <script>
+    const select = document.getElementById('background-select');
+    const applyBtn = document.getElementById('apply-btn');
+
+    // Apply saved theme on page load
+    const savedTheme = localStorage.getItem('theme') || 'default';
+    document.body.classList.add(savedTheme);
+    select.value = savedTheme;
+
+    // Apply button logic
+    applyBtn.addEventListener('click', () => {
+      document.body.classList.remove('default', 'dark');
+      document.body.classList.add(select.value);
+      localStorage.setItem('theme', select.value);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600&family=Titan+One&display=swap');
+
+:root {
+  --bg-default: url('pigetback.png');
+  --bg-dark: url('darkpigetback.png');
+
+  --text-color: #ffffff;
+  --accent-color: #f300fc;
+
+  --glass-bg: rgba(255, 255, 255, 0.1);
+  --glass-border: rgba(255, 255, 255, 0.2);
+
+  --radius: 16px;
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+
+  --font-heading: 'Titan One', cursive;
+  --font-body: 'Nunito', sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background-size: cover;
+  background-position: center;
+  color: var(--text-color);
+  min-height: 100vh;
+}
+
+body.theme-default {
+  background-image: var(--bg-default);
+}
+
+body.theme-dark {
+  background-image: var(--bg-dark);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 400;
+  margin: 0;
+}
+
+/* Navbar */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 30px;
+  backdrop-filter: blur(12px);
+  background: var(--glass-bg);
+  border-bottom: 2px solid var(--glass-border);
+  box-shadow: var(--shadow);
+  position: sticky;
+  top: 0;
+  z-index: 999;
+}
+
+.logo {
+  font-family: var(--font-heading);
+  font-size: 24px;
+  color: var(--text-color);
+}
+
+.nav-links a {
+  color: var(--text-color);
+  margin: 0 10px;
+  text-decoration: none;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  transition: background-color 0.3s ease;
+  font-family: var(--font-body);
+}
+
+.nav-links a:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Landing Page Content */
+.landing-container {
+  text-align: center;
+  padding: 100px 20px 40px;
+}
+
+.landing-title {
+  font-family: var(--font-heading);
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+.landing-description {
+  font-size: 18px;
+  max-width: 700px;
+  margin: 0 auto 30px;
+  font-family: var(--font-body);
+  opacity: 0.9;
+}
+
+.btn-primary {
+  background-color: var(--accent-color);
+  color: #000;
+  padding: 12px 24px;
+  border: none;
+  border-radius: var(--radius);
+  font-weight: 600;
+  font-family: var(--font-body);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.3s ease;
+}
+
+.btn-primary:hover {
+  background-color: #b700ff;
+}
+
+/* About Section */
+.about-section {
+  background: var(--glass-bg);
+  border: 2px solid var(--glass-border);
+  border-radius: var(--radius);
+  padding: 40px 20px;
+  margin: 40px auto;
+  max-width: 800px;
+  text-align: center;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+}
+
+/* Footer */
+.footer {
+  margin-top: 60px;
+  text-align: center;
+  padding-bottom: 40px;
+}
+
+.discord-button {
+  display: inline-block;
+  background-color: #5865f2;
+  color: white;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  text-decoration: none;
+  font-weight: 600;
+  font-family: var(--font-body);
+  transition: background 0.3s ease;
+}
+
+.discord-button:hover {
+  background-color: #4752c4;
+}
+
+.footer p {
+  margin-top: 10px;
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+/* Mobile Support */
+@media (max-width: 768px) {
+  .nav-links {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .nav-links a {
+    margin: 10px 0;
+  }
+
+  .landing-title {
+    font-size: 36px;
+  }
+
+  .landing-description {
+    font-size: 16px;
+  }
+}

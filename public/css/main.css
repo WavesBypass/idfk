@@ -1,0 +1,83 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito&family=Titan+One&display=swap');
+
+body {
+  margin: 0;
+  font-family: 'Nunito', sans-serif;
+  background-image: url('pigetback.png');
+  background-size: cover;
+  background-position: center;
+  transition: background-image 0.3s ease-in-out;
+  color: white;
+}
+
+/* Dark theme */
+body.dark {
+  background-image: url('darkpigetback.png');
+}
+
+/* Default Theme Navbar (Pinkish translucent) */
+body:not(.dark) .navbar {
+  background-color: rgba(255, 192, 203, 0.25); /* light pink see-through */
+  backdrop-filter: blur(10px);
+}
+
+/* Dark Theme Navbar (Dark gray translucent) */
+body.dark .navbar {
+  background-color: rgba(40, 40, 40, 0.6);
+  backdrop-filter: blur(10px);
+}
+
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  font-family: 'Titan One', cursive;
+  font-size: 20px;
+  color: white;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.navbar a {
+  color: white;
+  margin: 0 1rem;
+  text-decoration: none;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 500;
+}
+
+.nav-logo {
+  font-size: 28px;
+  font-weight: normal;
+}
+
+.container {
+  max-width: 500px;
+  margin: 3rem auto;
+  padding: 2rem;
+  background-color: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  text-align: center;
+  color: white;
+}
+
+select, button {
+  margin-top: 1.2rem;
+  padding: 0.6rem 1.2rem;
+  font-family: 'Nunito', sans-serif;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+#apply-btn {
+  background-color: #4caf50;
+  color: white;
+  transition: background-color 0.3s ease;
+}
+
+#apply-btn:hover {
+  background-color: #66bb6a;
+}
