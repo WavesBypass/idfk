@@ -3,48 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Request to Join - Piget</title>
+  <title>Register</title>
   <link rel="stylesheet" href="css/auth.css" />
-  <style>
-    #popup-message {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background-color: rgba(0, 128, 0, 0.9);
-      color: white;
-      padding: 15px 25px;
-      border-radius: 10px;
-      font-weight: 600;
-      display: none;
-      z-index: 10000;
-    }
-    #popup-message.error {
-      background-color: rgba(220, 53, 69, 0.9);
-    }
-  </style>
 </head>
 <body>
   <div class="auth-navbar">
     <div class="nav-logo">Piget</div>
     <div class="nav-links">
-      <a href="index.html">Home</a>
       <a href="login.html">Login</a>
     </div>
   </div>
-
   <div class="login-container">
-    <h1 class="login-heading">Request to Join</h1>
-    <form id="registerForm" class="login-form">
+    <h2 class="login-heading">Request to Join Piget</h2>
+    <form id="formRequest" class="login-form">
       <input type="text" name="username" placeholder="Desired Username" required />
-      <input type="number" name="age" placeholder="Age" required />
+      <input type="number" name="age" placeholder="Your Age" required />
       <input type="text" name="discord" placeholder="Discord Username" required />
-      <input type="text" name="reason" placeholder="Why do you want to join?" required />
+      <textarea name="reason" placeholder="Why do you want to join?" rows="3" required></textarea>
       <button type="submit">Submit Request</button>
     </form>
+    <div id="popup" style="display:none;">Request submitted successfully!</div>
   </div>
-
-  <div id="popup-message"></div>
-
   <script src="form.js"></script>
 </body>
 </html>

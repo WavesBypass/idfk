@@ -1,25 +1,25 @@
-fetch('/forms')
-  .then(res => res.json())
-  .then(data => {
-    const container = document.getElementById('requests');
-    if (!data.length) {
-      container.innerHTML = "<p>No pending requests.</p>";
-      return;
-    }
-    data.forEach(req => {
-      container.innerHTML += `
-        <div class="card">
-          <h3>${req.username}</h3>
-          <p><strong>Age:</strong> ${req.age}</p>
-          <p><strong>Discord:</strong> ${req.discord}</p>
-          <p><strong>Reason:</strong> ${req.reason}</p>
-          <form method="POST" action="/approve/${req.id}"><button class="approve">Approve</button></form>
-          <form method="POST" action="/deny/${req.id}"><button class="deny">Deny</button></form>
-        </div>
-      `;
-    });
-  })
-  .catch(err => {
-    document.getElementById('requests').innerHTML = "<p>Error loading requests.</p>";
-    console.error(err);
+window.onload = async () => {
+  const container = document.getElementById('requests');
+  const res = await fetch('/forms');
+  const data = await res.json();
+
+  if (data.length === 0) {
+    container.innerHTML = "<p>No pending requests.</p>";
+    return;
+  }
+
+  data.forEach(req => {
+    const div = document.createElement('div');
+    div.className = 'request';
+    div.innerHTML = `
+      <p><strong>Username:</strong> ${req.username}</p>
+      <p><strong>Age:</strong> ${req.age}</p>
+      <p><strong>Discord:</strong> ${req.discord}</p>
+      <p><strong>Reason:</strong> ${req.reason}</p>
+      <form method="POST" action="/approve/${req.id}"><button type="submit">Approve</button></form>
+      <form method="POST" action="/deny/${req.id}"><button type="submit">Deny</button></form>
+      <hr/>
+    `;
+    container.appendChild(div);
   });
+};
