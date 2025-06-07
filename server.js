@@ -1,14 +1,27 @@
+// server.js
 const express = require('express');
 const path = require('path');
-const db = require('./db');       // your existing connection
+const db = require('./db');           // your existing db.js
 const session = require('express-session');
 
 const app = express();
-app.use(express.static('public'));
-app.use(express.urlencoded({ extended: true }));
-app.use(session({ secret: '…', resave: false, saveUninitialized: true }));
+const PORT = process.env.PORT || 3000;
 
-// 1) Auto-create table
+// Static files
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Body parsing
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
+// Session (for isStaff)
+app.use(session({
+  secret: 'replace-with-your-secret',
+  resave: false,
+  saveUninitialized: false,
+}));
+
+// Auto-create join_requests table
 db.query(`
   CREATE TABLE IF NOT EXISTS join_requests (
     id SERIAL PRIMARY KEY,
@@ -19,52 +32,79 @@ db.query(`
     status TEXT DEFAULT 'pending',
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
-`).catch(console.error);
+`).catch(err => console.error('Table creation error:', err));
 
-// 2) User submits request
+// Simple stub isStaff middleware — replace with your real auth
+function isStaff(req, res, next) {
+  // e.g. req.session.user.role === 'staff'
+  if (req.session.user && req.session.user.role === 'staff') {
+    return next();
+  }
+  return res.status(403).send('Access denied');
+}
+
+// 1) Handle user form submission
 app.post('/submit-request', async (req, res) => {
   const { username, age, discord, reason } = req.body;
+  if (!username || !age || !discord || !reason) {
+    return res.status(400).send('All fields are required.');
+  }
   try {
     await db.query(
       `INSERT INTO join_requests (username, age, discord, reason)
-       VALUES ($1,$2,$3,$4)`,
+       VALUES ($1, $2, $3, $4)`,
       [username, age, discord, reason]
     );
-    // show a simple “pending” page or redirect back
-    return res.send(`<p>Thanks! Your request is pending approval.</p><a href="/">Home</a>`);
+    // Redirect back with a query flag that we can use for a popup
+    res.redirect('/register.html?sent=1');
   } catch (err) {
-    console.error(err);
-    return res.status(500).send("Server error, try again later.");
+    console.error('Insert error:', err);
+    res.status(500).send('Server error.');
   }
 });
 
-// 3) Middleware to protect admin (fill in your auth logic)
-function isStaff(req, res, next) {
-  if (req.session.user?.role === 'staff') return next();
-  res.status(403).send("Forbidden");
-}
-
-// 4) Render forms.html with data
-app.get('/forms.html', isStaff, async (req, res) => {
-  const { rows: requests } = await db.query(
-    `SELECT * FROM join_requests WHERE status='pending' ORDER BY submitted_at`
-  );
-  res.render(path.join(__dirname, 'public/forms.html'), { requests });
+// 2) Serve pending requests as JSON (for staff page)
+app.get('/forms', isStaff, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT * FROM join_requests WHERE status='pending' ORDER BY submitted_at`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Fetch forms error:', err);
+    res.status(500).send('Error loading forms.');
+  }
 });
 
-// 5) Approve or deny
+// 3) Approve / Deny endpoints
 app.post('/approve/:id', isStaff, async (req, res) => {
   const id = req.params.id;
-  // create the real user
-  const { rows } = await db.query(`SELECT username FROM join_requests WHERE id=$1`, [id]);
-  await db.query(`INSERT INTO users (username) VALUES ($1)`, [rows[0].username]);
-  await db.query(`UPDATE join_requests SET status='approved' WHERE id=$1`, [id]);
-  res.redirect('/forms.html');
+  try {
+    // create the actual user
+    const { rows } = await db.query(
+      'SELECT username FROM join_requests WHERE id=$1',
+      [id]
+    );
+    await db.query('INSERT INTO users (username) VALUES ($1)', [rows[0].username]);
+    await db.query(`UPDATE join_requests SET status='approved' WHERE id=$1`, [id]);
+    res.redirect('/forms.html');
+  } catch (err) {
+    console.error('Approve error:', err);
+    res.status(500).send('Error approving.');
+  }
 });
 
 app.post('/deny/:id', isStaff, async (req, res) => {
-  await db.query(`UPDATE join_requests SET status='denied' WHERE id=$1`, [req.params.id]);
-  res.redirect('/forms.html');
+  const id = req.params.id;
+  try {
+    await db.query(`UPDATE join_requests SET status='denied' WHERE id=$1`, [id]);
+    res.redirect('/forms.html');
+  } catch (err) {
+    console.error('Deny error:', err);
+    res.status(500).send('Error denying.');
+  }
 });
 
-app.listen(3000, () => console.log("Server listening on http://localhost:3000"));
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
