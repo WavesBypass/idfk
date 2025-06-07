@@ -1,21 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Review Requests</title>
-  <link rel="stylesheet" href="css/form.css">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pending Requests</title>
+  <link rel="stylesheet" href="css/form.css"/>
 </head>
 <body>
   <div class="auth-navbar">
-    <div class="nav-logo">Piget - Admin</div>
-    <div class="nav-links">
-      <a href="logout.html">Logout</a>
-    </div>
+    <div class="nav-logo">Piget Admin</div>
   </div>
-  <div class="login-container">
-    <h2 class="login-heading">Pending Join Requests</h2>
+
+  <div class="form-container">
+    <h1>Pending Join Requests</h1>
     <div id="requests"></div>
   </div>
-  <script src="forms.js"></script>
+
+  <script>
+    fetch('/forms')
+      .then(res => res.json())
+      .then(rows => {
+        const c = document.getElementById('requests');
+        if (!rows.length) {
+          c.innerHTML = '<p>No pending requests.</p>';
+          return;
+        }
+        rows.forEach(r => {
+          c.innerHTML += `
+            <div class="card">
+              <h3>${r.username} (age ${r.age})</h3>
+              <p><strong>Discord:</strong> ${r.discord}</p>
+              <p><strong>Reason:</strong> ${r.reason}</p>
+              <form action="/approve/${r.id}" method="POST" style="display:inline;"><button>Approve</button></form>
+              <form action="/deny/${r.id}" method="POST" style="display:inline;"><button>Deny</button></form>
+            </div>
+          `;
+        });
+      })
+      .catch(() => {
+        document.getElementById('requests').innerHTML = '<p>Error loading.</p>';
+      });
+  </script>
 </body>
 </html>
