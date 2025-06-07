@@ -1,24 +1,17 @@
 const { Pool } = require('pg');
-require('dotenv').config();
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }, // for DigitalOcean
+  ssl: {
+    rejectUnauthorized: false // Required for self-signed certs on DigitalOcean
+  }
 });
 
-async function initDB() {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL
-      );
-    `);
-    console.log("✅ Users table ready.");
-  } catch (err) {
-    console.error("❌ Error creating users table:", err);
-  }
-}
+pool.connect()
+  .then(() => console.log('✅ Connected to PostgreSQL'))
+  .catch(err => {
+    console.error('❌ PostgreSQL connection error:', err.message);
+    process.exit(1); // Stop the app if DB fails
+  });
 
-module.exports = { pool, initDB };
+module.exports = pool;
