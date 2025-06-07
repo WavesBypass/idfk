@@ -1,90 +1,70 @@
 const express = require('express');
+const path = require('path');
+const db = require('./db');       // your existing connection
 const session = require('express-session');
-const bcrypt = require('bcrypt');
-const pool = require('./db');
-require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 8080;
-
-app.use(express.static('public', { extensions: ['html'] }));
-app.use(express.json());
+app.use(express.static('public'));
 app.use(express.urlencoded({ extended: true }));
+app.use(session({ secret: '…', resave: false, saveUninitialized: true }));
 
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false
-}));
+// 1) Auto-create table
+db.query(`
+  CREATE TABLE IF NOT EXISTS join_requests (
+    id SERIAL PRIMARY KEY,
+    username TEXT NOT NULL,
+    age INTEGER NOT NULL,
+    discord TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    status TEXT DEFAULT 'pending',
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+`).catch(console.error);
 
-// Initialize DB
-async function initDB() {
+// 2) User submits request
+app.post('/submit-request', async (req, res) => {
+  const { username, age, discord, reason } = req.body;
   try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        username VARCHAR(255) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL
-      );
-    `);
-    console.log('✅ Users table ready');
-  } catch (err) {
-    console.error('❌ Error creating users table:', err);
-  }
-}
-initDB();
-
-// Register Route
-app.post('/register', async (req, res) => {
-  const { username, password } = req.body;
-  console.log("Registering user:", username);
-
-  try {
-    const hashed = await bcrypt.hash(password, 10);
-    await pool.query(
-      'INSERT INTO users (username, password) VALUES ($1, $2)',
-      [username, hashed]
+    await db.query(
+      `INSERT INTO join_requests (username, age, discord, reason)
+       VALUES ($1,$2,$3,$4)`,
+      [username, age, discord, reason]
     );
-    res.status(200).json({ success: true });
+    // show a simple “pending” page or redirect back
+    return res.send(`<p>Thanks! Your request is pending approval.</p><a href="/">Home</a>`);
   } catch (err) {
-    console.error("❌ Register error:", err);
-    res.status(500).json({ error: 'Username taken or error occurred.' });
+    console.error(err);
+    return res.status(500).send("Server error, try again later.");
   }
 });
 
-// Login Route
-app.post('/login', async (req, res) => {
-  const { username, password } = req.body;
-  console.log("Login attempt:", username);
+// 3) Middleware to protect admin (fill in your auth logic)
+function isStaff(req, res, next) {
+  if (req.session.user?.role === 'staff') return next();
+  res.status(403).send("Forbidden");
+}
 
-  try {
-    const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
-    if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    const user = result.rows[0];
-    const valid = await bcrypt.compare(password, user.password);
-    if (!valid) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    req.session.userId = user.id;
-    res.status(200).json({ success: true });
-  } catch (err) {
-    console.error("❌ Login error:", err);
-    res.status(500).json({ error: 'Login failed' });
-  }
+// 4) Render forms.html with data
+app.get('/forms.html', isStaff, async (req, res) => {
+  const { rows: requests } = await db.query(
+    `SELECT * FROM join_requests WHERE status='pending' ORDER BY submitted_at`
+  );
+  res.render(path.join(__dirname, 'public/forms.html'), { requests });
 });
 
-// Dashboard Route
-app.get('/dashboard', (req, res) => {
-  if (!req.session.userId) {
-    return res.redirect('/login.html');
-  }
-  res.sendFile(__dirname + '/public/dashboard.html');
+// 5) Approve or deny
+app.post('/approve/:id', isStaff, async (req, res) => {
+  const id = req.params.id;
+  // create the real user
+  const { rows } = await db.query(`SELECT username FROM join_requests WHERE id=$1`, [id]);
+  await db.query(`INSERT INTO users (username) VALUES ($1)`, [rows[0].username]);
+  await db.query(`UPDATE join_requests SET status='approved' WHERE id=$1`, [id]);
+  res.redirect('/forms.html');
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+app.post('/deny/:id', isStaff, async (req, res) => {
+  await db.query(`UPDATE join_requests SET status='denied' WHERE id=$1`, [req.params.id]);
+  res.redirect('/forms.html');
 });
+
+app.listen(3000, () => console.log("Server listening on http://localhost:3000"));
