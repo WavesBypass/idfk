@@ -1,12 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><title>Login</title></head>
+<html>
+<head>
+  <title>Login</title>
+</head>
 <body>
+  <h2>Login</h2>
   <form action="/login" method="POST">
-    <h2>Login</h2>
-    <input name="username" required placeholder="Username"><br>
-    <input type="password" name="password" required placeholder="Password"><br>
+    <input name="username" type="text" placeholder="Username" required />
+    <input name="password" type="password" placeholder="Password" required />
     <button type="submit">Login</button>
   </form>
+  <p>Don't have an account? <a href="/register">Register</a></p>
 </body>
 </html>
