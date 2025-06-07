@@ -5,6 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Request to Join</title>
   <link rel="stylesheet" href="css/auth.css" />
+  <style>
+    .popup {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(0,128,0,0.9);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      display: none;
+    }
+  </style>
 </head>
 <body>
   <div class="auth-navbar">
@@ -21,5 +33,16 @@
       <button type="submit">Submit Request</button>
     </form>
   </div>
+
+  <div id="popup" class="popup">Request submitted! Await approval.</div>
+
+  <script>
+    // Show popup if ?sent=1 in URL
+    if (location.search.includes('sent=1')) {
+      const pop = document.getElementById('popup');
+      pop.style.display = 'block';
+      setTimeout(() => pop.style.display = 'none', 4000);
+    }
+  </script>
 </body>
 </html>
