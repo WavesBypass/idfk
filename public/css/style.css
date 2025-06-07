@@ -1,8 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600&family=Titan+One&display=swap');
 
 :root {
-  --bg-default: url('pigetback.png');
-  --bg-dark: url('darkpigetback.png');
+  --bg-default: url('images/pigetback.png');
+  --bg-dark: url('images/darkpigetback.png');
 
   --text-color: #ffffff;
   --accent-color: #f300fc;
