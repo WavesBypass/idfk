@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Titan+One&family=Nunito:wght@300;400;600&display=swap');
 
 :root {
-  --bg-auth: url('images/pigetback.png');
+  --bg-auth: url('../images/pigetback.png');
   --text-color: #ffffff;
   --glass-bg: rgba(255, 255, 255, 0.1);
   --glass-border: rgba(255, 255, 255, 0.2);
