@@ -3,7 +3,7 @@
 body {
   margin: 0;
   font-family: 'Nunito', sans-serif;
-  background-image: url('pigetback.png');
+  background-image: url('../images/pigetback.png');
   background-size: cover;
   background-position: center;
   transition: background-image 0.3s ease-in-out;
@@ -12,7 +12,7 @@ body {
 
 /* Dark theme */
 body.dark {
-  background-image: url('darkpigetback.png');
+  background-image: url('../images/darkpigetback.png');
 }
 
 /* Default Theme Navbar (Pinkish translucent) */
