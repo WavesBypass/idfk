@@ -1,43 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Pending Requests</title>
-  <link rel="stylesheet" href="css/form.css"/>
+  <title>Form Submissions - Piget</title>
+  <link rel="stylesheet" href="forms.css" />
 </head>
 <body>
   <div class="auth-navbar">
-    <div class="nav-logo">Piget Admin</div>
+    <div class="nav-logo">Piget</div>
+    <div class="nav-links">
+      <a href="register.html">Register</a>
+      <a href="login.html">Login</a>
+    </div>
   </div>
 
-  <div class="form-container">
-    <h1>Pending Join Requests</h1>
-    <div id="requests"></div>
+  <div class="login-container">
+    <h2 class="login-heading">Pending Join Requests</h2>
+    <div id="requests">
+      <p>Loading...</p>
+    </div>
   </div>
 
   <script>
     fetch('/forms')
-      .then(res => res.json())
-      .then(rows => {
-        const c = document.getElementById('requests');
-        if (!rows.length) {
-          c.innerHTML = '<p>No pending requests.</p>';
-          return;
+      .then(async res => {
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`Server error: ${res.status} - ${text}`);
         }
-        rows.forEach(r => {
-          c.innerHTML += `
-            <div class="card">
-              <h3>${r.username} (age ${r.age})</h3>
-              <p><strong>Discord:</strong> ${r.discord}</p>
-              <p><strong>Reason:</strong> ${r.reason}</p>
-              <form action="/approve/${r.id}" method="POST" style="display:inline;"><button>Approve</button></form>
-              <form action="/deny/${r.id}" method="POST" style="display:inline;"><button>Deny</button></form>
-            </div>
-          `;
-        });
+        return res.json();
       })
-      .catch(() => {
+      .then(forms => {
+        const container = document.getElementById('requests');
+        if (forms.length === 0) {
+          container.innerHTML = "<p>No pending requests.</p>";
+        } else {
+          container.innerHTML = "";
+          forms.forEach(form => {
+            const div = document.createElement('div');
+            div.innerHTML = `
+              <div class="request-card">
+                <p><strong>Username:</strong> ${form.username}</p>
+                <p><strong>Reason:</strong> ${form.reason}</p>
+                <p><strong>Submitted:</strong> ${new Date(form.submitted_at).toLocaleString()}</p>
+              </div>
+              <hr/>
+            `;
+            container.appendChild(div);
+          });
+        }
+      })
+      .catch(err => {
+        console.error('Fetch error:', err);
         document.getElementById('requests').innerHTML = '<p>Error loading.</p>';
       });
   </script>
