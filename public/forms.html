@@ -1,60 +1,63 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Form Submissions - Piget</title>
-  <link rel="stylesheet" href="forms.css" />
+  <meta charset="UTF-8">
+  <title>Form Requests</title>
+  <link rel="stylesheet" href="forms.css">
 </head>
 <body>
   <div class="auth-navbar">
     <div class="nav-logo">Piget</div>
     <div class="nav-links">
       <a href="register.html">Register</a>
-      <a href="login.html">Login</a>
     </div>
   </div>
 
   <div class="login-container">
-    <h2 class="login-heading">Pending Join Requests</h2>
-    <div id="requests">
-      <p>Loading...</p>
-    </div>
+    <h2 class="login-heading">Pending Form Requests</h2>
+    <div id="form-list"></div>
   </div>
 
   <script>
-    fetch('/forms')
-      .then(async res => {
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(`Server error: ${res.status} - ${text}`);
-        }
-        return res.json();
-      })
-      .then(forms => {
-        const container = document.getElementById('requests');
-        if (forms.length === 0) {
-          container.innerHTML = "<p>No pending requests.</p>";
-        } else {
-          container.innerHTML = "";
-          forms.forEach(form => {
-            const div = document.createElement('div');
-            div.innerHTML = `
-              <div class="request-card">
-                <p><strong>Username:</strong> ${form.username}</p>
-                <p><strong>Reason:</strong> ${form.reason}</p>
-                <p><strong>Submitted:</strong> ${new Date(form.submitted_at).toLocaleString()}</p>
-              </div>
-              <hr/>
-            `;
-            container.appendChild(div);
-          });
-        }
-      })
-      .catch(err => {
-        console.error('Fetch error:', err);
-        document.getElementById('requests').innerHTML = '<p>Error loading.</p>';
+    async function fetchForms() {
+      const res = await fetch('/forms');
+      const forms = await res.json();
+      const container = document.getElementById('form-list');
+      container.innerHTML = '';
+
+      if (forms.length === 0) {
+        container.innerHTML = '<p>No pending forms.</p>';
+        return;
+      }
+
+      forms.forEach(form => {
+        const div = document.createElement('div');
+        div.classList.add('form-card');
+        div.innerHTML = `
+          <p><strong>Username:</strong> ${form.username}</p>
+          <p><strong>Reason:</strong> ${form.reason}</p>
+          <button onclick="respondToForm(${form.id}, 'approved')">Approve</button>
+          <button onclick="respondToForm(${form.id}, 'denied')">Deny</button>
+        `;
+        container.appendChild(div);
       });
+    }
+
+    async function respondToForm(id, action) {
+      const res = await fetch(`/forms/${id}/${action}`, {
+        method: 'POST'
+      });
+
+      if (res.ok) {
+        alert(`Form ${action} successfully.`);
+        fetchForms();
+      } else {
+        alert('Error updating form status.');
+      }
+    }
+
+    fetchForms();
   </script>
 </body>
 </html>

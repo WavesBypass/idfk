@@ -1,63 +1,49 @@
+
 const express = require('express');
-const session = require('express-session');
-const path = require('path');
-const db = require('./db');
-
 const app = express();
-const PORT = process.env.PORT || 3000;
+const bodyParser = require('body-parser');
+const pg = require('pg');
+const cors = require('cors');
 
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-app.use(session({
-  secret: 'your_secret_key',
-  resave: false,
-  saveUninitialized: false
-}));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(cors());
+app.use(bodyParser.json());
+app.use(express.static('public'));
 
-// Register route
-app.post('/register', async (req, res) => {
-  const { username, password } = req.body;
-  try {
-    await db.query(
-      'INSERT INTO users (username, password, role) VALUES ($1, $2, $3)',
-      [username, password, 'user']
-    );
-    res.status(200).send('Registered successfully');
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Error registering user');
-  }
+const pool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL || 'postgresql://username:password@localhost:5432/piget'
 });
 
-// Submit form route
-app.post('/submit-form', async (req, res) => {
-  const { username, reason } = req.body;
-  try {
-    await db.query(
-      'INSERT INTO join_requests (username, reason, status, submitted_at) VALUES ($1, $2, $3, NOW())',
-      [username, reason, 'pending']
-    );
-    res.status(200).send('Form submitted');
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Error submitting form');
-  }
-});
-
-// Show all pending forms (no auth for now)
 app.get('/forms', async (req, res) => {
   try {
-    const { rows } = await db.query(
-      `SELECT * FROM join_requests WHERE status = 'pending' ORDER BY submitted_at DESC`
-    );
-    res.json(rows);
+    const result = await pool.query('SELECT * FROM forms WHERE status = $1 ORDER BY submitted_at DESC', ['pending']);
+    res.json(result.rows);
   } catch (err) {
-    console.error('Error loading forms:', err);
-    res.status(500).send('Error loading forms');
+    console.error(err);
+    res.status(500).send('Server error');
   }
 });
 
+app.post('/forms/:id/approved', async (req, res) => {
+  try {
+    await pool.query('UPDATE forms SET status = $1 WHERE id = $2', ['approved', req.params.id]);
+    res.sendStatus(200);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server error');
+  }
+});
+
+app.post('/forms/:id/denied', async (req, res) => {
+  try {
+    await pool.query('UPDATE forms SET status = $1 WHERE id = $2', ['denied', req.params.id]);
+    res.sendStatus(200);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server error');
+  }
+});
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
