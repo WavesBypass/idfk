@@ -1,129 +1,133 @@
 const express = require('express');
+const bodyParser = require('body-parser');
 const session = require('express-session');
 const path = require('path');
-const bodyParser = require('body-parser');
-const { Pool } = require('pg');
-
+const pg = require('pg');
 const app = express();
 
-const pool = new Pool({
+const PORT = process.env.PORT || 3000;
+
+const db = new pg.Pool({
   user: 'doadmin',
   host: 'db-postgresql-nyc1-97903-do-user-22678364-0.f.db.ondigitalocean.com',
   database: 'defaultdb',
   password: 'AVNS_pmydiR8acsiQlbtVTQF',
   port: 25060,
-  ssl: { rejectUnauthorized: false },
+  ssl: { rejectUnauthorized: false }
 });
 
-app.use(bodyParser.urlencoded({ extended: true }));
+// Auto-create tables
+const createTables = async () => {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL
+    );
+  `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS form_requests (
+      id SERIAL PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      reason TEXT,
+      status TEXT DEFAULT 'pending'
+    );
+  `);
+};
+
+createTables().catch(err => console.error('Table creation error:', err));
+
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(session({
-  secret: 'piget-secret-key',
+  secret: 'yourSecret',
   resave: false,
-  saveUninitialized: false,
+  saveUninitialized: true
 }));
+
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Create tables
-async function initDB() {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL
-      );
-    `);
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS requests (
-        id SERIAL PRIMARY KEY,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        age TEXT,
-        discord TEXT,
-        reason TEXT,
-        status TEXT DEFAULT 'pending'
-      );
-    `);
-    console.log("✅ Tables ensured");
-  } catch (err) {
-    console.error("❌ DB Init Error:", err);
-  }
-}
-initDB();
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'register.html'));
-});
-
-// Submit form
+// REGISTER SUBMISSION -> form_requests
 app.post('/submit-request', async (req, res) => {
-  const { username, password, age, discord, reason } = req.body;
+  const { username, password, reason } = req.body;
+
   if (!username || !password || !reason) {
-    return res.status(400).json({ success: false, message: 'Missing required fields.' });
+    return res.status(400).json({ error: 'Missing fields' });
   }
 
   try {
-    const userCheck = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
-    const requestCheck = await pool.query('SELECT * FROM requests WHERE username = $1 AND status = $2', [username, 'pending']);
-
-    if (userCheck.rows.length > 0 || requestCheck.rows.length > 0) {
-      return res.status(409).json({ success: false, message: 'Username already exists or is pending.' });
+    const userExists = await db.query('SELECT * FROM users WHERE username = $1', [username]);
+    if (userExists.rows.length > 0) {
+      return res.status(409).json({ error: 'Username already exists' });
     }
 
-    await pool.query(
-      `INSERT INTO requests (username, password, age, discord, reason) VALUES ($1, $2, $3, $4, $5)`,
-      [username, password, age, discord, reason]
-    );
+    const requestExists = await db.query('SELECT * FROM form_requests WHERE username = $1', [username]);
+    if (requestExists.rows.length > 0) {
+      return res.status(409).json({ error: 'Form request already submitted' });
+    }
 
-    res.json({ success: true });
+    await db.query('INSERT INTO form_requests (username, password, reason) VALUES ($1, $2, $3)', [username, password, reason]);
+    return res.status(200).json({ success: true });
   } catch (err) {
-    console.error('Submit error:', err);
-    res.status(500).json({ success: false, message: 'Server error.' });
+    console.error('Submit request error:', err);
+    return res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Get pending requests
+// LOGIN
+app.post('/login', async (req, res) => {
+  const { username, password } = req.body;
+  try {
+    const result = await db.query('SELECT * FROM users WHERE username = $1 AND password = $2', [username, password]);
+    if (result.rows.length > 0) {
+      req.session.user = result.rows[0];
+      return res.status(200).json({ success: true });
+    } else {
+      return res.status(401).json({ error: 'Invalid login' });
+    }
+  } catch (err) {
+    console.error('Login error:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET FORM REQUESTS
 app.get('/requests', async (req, res) => {
   try {
-    const result = await pool.query(`SELECT * FROM requests WHERE status = 'pending'`);
-    res.json(result.rows);
+    const result = await db.query('SELECT * FROM form_requests ORDER BY id DESC');
+    return res.status(200).json(result.rows); // Must be an array
   } catch (err) {
-    console.error('GET /requests error:', err);
-    res.status(500).json({ error: 'Failed to fetch requests.' });
+    console.error('Get requests error:', err);
+    return res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Approve
-app.post('/approve', async (req, res) => {
-  const { id } = req.body;
+// APPROVE/DENY REQUESTS
+app.post('/approve-request', async (req, res) => {
+  const { id, action } = req.body;
+
   try {
-    const result = await pool.query(`SELECT * FROM requests WHERE id = $1`, [id]);
-    const reqData = result.rows[0];
-    if (!reqData) return res.status(404).json({ error: 'Request not found' });
+    const request = await db.query('SELECT * FROM form_requests WHERE id = $1', [id]);
+    if (request.rows.length === 0) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
 
-    await pool.query(`INSERT INTO users (username, password) VALUES ($1, $2)`, [reqData.username, reqData.password]);
-    await pool.query(`UPDATE requests SET status = 'approved' WHERE id = $1`, [id]);
+    if (action === 'approve') {
+      const { username, password } = request.rows[0];
+      await db.query('INSERT INTO users (username, password) VALUES ($1, $2)', [username, password]);
+      await db.query('UPDATE form_requests SET status = $1 WHERE id = $2', ['approved', id]);
+    } else if (action === 'deny') {
+      await db.query('UPDATE form_requests SET status = $1 WHERE id = $2', ['denied', id]);
+    }
 
-    res.json({ success: true });
+    return res.status(200).json({ success: true });
   } catch (err) {
-    console.error('Approve error:', err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Approve/Deny error:', err);
+    return res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Deny
-app.post('/deny', async (req, res) => {
-  const { id } = req.body;
-  try {
-    await pool.query(`UPDATE requests SET status = 'denied' WHERE id = $1`, [id]);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Deny error:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Running on port ${PORT}`));
