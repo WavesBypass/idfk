@@ -1,5 +1,4 @@
 const express = require('express');
-const bodyParser = require('body-parser');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
 const { Pool } = require('pg');
@@ -8,84 +7,76 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// PostgreSQL connection
+// PostgreSQL config
 const pool = new Pool({
   user: 'doadmin',
   password: 'AVNS_pmydiR8acsiQlbtVTQF',
   host: 'db-postgresql-nyc1-97903-do-user-22678364-0.f.db.ondigitalocean.com',
-  database: 'defaultdb',
   port: 25060,
+  database: 'defaultdb',
   ssl: { rejectUnauthorized: false }
 });
 
 // Middleware
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 app.use(session({
-  secret: 'your-secret-key',
+  secret: 'piget_secret',
   resave: false,
   saveUninitialized: true
 }));
 
-// Tables setup
-async function setupTables() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS requests (
-      id SERIAL PRIMARY KEY,
-      username TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL,
-      age INTEGER,
-      discord TEXT,
-      reason TEXT
-    );
-  `);
+// Create tables if not exist
+pool.query(`
+  CREATE TABLE IF NOT EXISTS requests (
+    id SERIAL PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    reason TEXT,
+    age INT,
+    discord TEXT
+  );
+`);
+pool.query(`
+  CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL
+  );
+`);
 
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      username TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL
-    );
-  `);
-}
-setupTables();
-
-// Submit registration request
+// Submit form
 app.post('/submit-request', async (req, res) => {
-  const { username, password, age, discord, reason } = req.body;
+  const { username, password, reason, age, discord } = req.body;
+  const hashed = await bcrypt.hash(password, 10);
 
   try {
-    const hashed = await bcrypt.hash(password, 10);
     await pool.query(
-      'INSERT INTO requests (username, password, age, discord, reason) VALUES ($1, $2, $3, $4, $5)',
-      [username, hashed, age, discord, reason]
+      'INSERT INTO requests (username, password, reason, age, discord) VALUES ($1, $2, $3, $4, $5)',
+      [username, hashed, reason, age, discord]
     );
-    res.status(200).send('Request submitted');
+    res.redirect('/register.html?success=true');
   } catch (err) {
     console.error(err);
     res.status(500).send('Error submitting request');
   }
 });
 
-// Get all requests
+// Get requests
 app.get('/requests', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM requests');
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).send('Error loading requests');
-  }
+  const result = await pool.query('SELECT * FROM requests');
+  res.json(result.rows);
 });
 
-// Approve or deny a request
+// Approve/Deny
 app.post('/requests/:id', async (req, res) => {
-  const id = req.params.id;
+  const { id } = req.params;
   const { action } = req.body;
 
   try {
     const { rows } = await pool.query('SELECT * FROM requests WHERE id = $1', [id]);
-    if (rows.length === 0) return res.status(404).send('Request not found');
+    if (!rows.length) return res.status(404).send('Request not found');
 
     const request = rows[0];
 
@@ -97,41 +88,41 @@ app.post('/requests/:id', async (req, res) => {
     }
 
     await pool.query('DELETE FROM requests WHERE id = $1', [id]);
-    res.send('Action completed');
+    res.status(200).send('Success');
   } catch (err) {
     console.error(err);
-    res.status(500).send('Error processing request');
+    res.status(500).send('Action failed');
   }
 });
 
 // Login
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
+  const { rows } = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
 
-  try {
-    const { rows } = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
-    if (rows.length === 0) return res.status(401).send('Invalid credentials');
+  if (!rows.length) return res.status(401).send('Invalid login');
 
-    const valid = await bcrypt.compare(password, rows[0].password);
-    if (!valid) return res.status(401).send('Invalid credentials');
+  const valid = await bcrypt.compare(password, rows[0].password);
+  if (!valid) return res.status(401).send('Invalid password');
 
-    req.session.user = username;
-    res.status(200).send('Login success');
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Login failed');
-  }
+  req.session.user = username;
+  res.redirect('/stats.html');
 });
 
 // Check session
-app.get('/session', (req, res) => {
+app.get('/check-login', (req, res) => {
   if (req.session.user) {
-    res.json({ loggedIn: true, user: req.session.user });
+    res.json({ loggedIn: true });
   } else {
     res.json({ loggedIn: false });
   }
 });
 
+// Logout
+app.get('/logout', (req, res) => {
+  req.session.destroy(() => res.redirect('/login.html'));
+});
+
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
