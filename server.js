@@ -7,7 +7,7 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// PostgreSQL config
+// ✅ PostgreSQL connection for DigitalOcean Managed DB
 const pool = new Pool({
   user: 'doadmin',
   password: 'AVNS_pmydiR8acsiQlbtVTQF',
@@ -17,17 +17,18 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Middleware
+// ✅ Middleware
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(express.static(path.join(__dirname)));
+app.use(express.static(path.join(__dirname, 'public'))); // root-level access to public/
+
 app.use(session({
-  secret: 'piget_secret',
+  secret: 'piget_secret_key',
   resave: false,
   saveUninitialized: true
 }));
 
-// Create tables if not exist
+// ✅ Auto-create tables if not exist
 pool.query(`
   CREATE TABLE IF NOT EXISTS requests (
     id SERIAL PRIMARY KEY,
@@ -38,6 +39,7 @@ pool.query(`
     discord TEXT
   );
 `);
+
 pool.query(`
   CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
@@ -46,12 +48,11 @@ pool.query(`
   );
 `);
 
-// Submit form
+// ✅ Handle form submission
 app.post('/submit-request', async (req, res) => {
   const { username, password, reason, age, discord } = req.body;
-  const hashed = await bcrypt.hash(password, 10);
-
   try {
+    const hashed = await bcrypt.hash(password, 10);
     await pool.query(
       'INSERT INTO requests (username, password, reason, age, discord) VALUES ($1, $2, $3, $4, $5)',
       [username, hashed, reason, age, discord]
@@ -59,26 +60,31 @@ app.post('/submit-request', async (req, res) => {
     res.redirect('/register.html?success=true');
   } catch (err) {
     console.error(err);
-    res.status(500).send('Error submitting request');
+    res.status(500).send('Error submitting form.');
   }
 });
 
-// Get requests
+// ✅ List all pending requests
 app.get('/requests', async (req, res) => {
-  const result = await pool.query('SELECT * FROM requests');
-  res.json(result.rows);
+  try {
+    const result = await pool.query('SELECT * FROM requests');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Failed to load requests');
+  }
 });
 
-// Approve/Deny
+// ✅ Approve or deny a request
 app.post('/requests/:id', async (req, res) => {
   const { id } = req.params;
   const { action } = req.body;
 
   try {
-    const { rows } = await pool.query('SELECT * FROM requests WHERE id = $1', [id]);
-    if (!rows.length) return res.status(404).send('Request not found');
+    const result = await pool.query('SELECT * FROM requests WHERE id = $1', [id]);
+    const request = result.rows[0];
 
-    const request = rows[0];
+    if (!request) return res.status(404).send('Request not found');
 
     if (action === 'approve') {
       await pool.query(
@@ -88,28 +94,37 @@ app.post('/requests/:id', async (req, res) => {
     }
 
     await pool.query('DELETE FROM requests WHERE id = $1', [id]);
-    res.status(200).send('Success');
+    res.status(200).send('Request processed');
   } catch (err) {
     console.error(err);
-    res.status(500).send('Action failed');
+    res.status(500).send('Error processing request');
   }
 });
 
-// Login
+// ✅ Login handler
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
-  const { rows } = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
 
-  if (!rows.length) return res.status(401).send('Invalid login');
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    if (result.rows.length === 0) {
+      return res.status(401).send('Invalid login');
+    }
 
-  const valid = await bcrypt.compare(password, rows[0].password);
-  if (!valid) return res.status(401).send('Invalid password');
+    const valid = await bcrypt.compare(password, result.rows[0].password);
+    if (!valid) {
+      return res.status(401).send('Incorrect password');
+    }
 
-  req.session.user = username;
-  res.redirect('/stats.html');
+    req.session.user = username;
+    res.redirect('/stats.html');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Login failed');
+  }
 });
 
-// Check session
+// ✅ Check login status (for redirecting from login page)
 app.get('/check-login', (req, res) => {
   if (req.session.user) {
     res.json({ loggedIn: true });
@@ -118,11 +133,14 @@ app.get('/check-login', (req, res) => {
   }
 });
 
-// Logout
+// ✅ Logout
 app.get('/logout', (req, res) => {
-  req.session.destroy(() => res.redirect('/login.html'));
+  req.session.destroy(() => {
+    res.redirect('/login.html');
+  });
 });
 
+// ✅ Start server
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`✅ Piget server running on port ${PORT}`);
 });
