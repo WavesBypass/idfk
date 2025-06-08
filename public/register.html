@@ -1,10 +1,8 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Register Form</title>
+  <title>Register - Piget</title>
   <link rel="stylesheet" href="forms.css" />
 </head>
 <body>
@@ -16,14 +14,14 @@
     </div>
   </div>
   <div class="login-container">
-    <h2 class="login-heading">Submit Form</h2>
-    <form id="formRequest" class="login-form">
+    <h2 class="login-heading">Register</h2>
+    <form class="login-form" method="POST" action="/submit-request">
       <input type="text" name="username" placeholder="Username" required />
-      <textarea name="message" placeholder="Your request..." required></textarea>
+      <input type="text" name="discord" placeholder="Discord Username" required />
+      <input type="number" name="age" placeholder="Age" required />
+      <textarea name="message" placeholder="Why do you want to apply?" required></textarea>
       <button type="submit">Submit</button>
     </form>
-    <div id="popup" class="popup">Form submitted successfully!</div>
   </div>
-  <script src="form.js"></script>
 </body>
 </html>
