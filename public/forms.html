@@ -1,65 +1,54 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Form Requests</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background: #111;
-      color: #fff;
-    }
-    .request {
-      background: #222;
-      border: 1px solid #444;
-      border-radius: 8px;
-      padding: 16px;
-      margin-bottom: 16px;
-    }
-    .request button {
-      margin-right: 8px;
-    }
-  </style>
+  <meta charset="UTF-8">
+  <title>Piget Forms Review</title>
+  <link rel="stylesheet" href="css/form.css">
 </head>
 <body>
-  <h1>Pending Registration Requests</h1>
-  <div id="requestsContainer"></div>
+  <div class="form-review-container">
+    <h1>Pending User Requests</h1>
+    <div id="request-list">Loading...</div>
+  </div>
 
   <script>
     async function loadRequests() {
       try {
         const res = await fetch('/requests');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const requests = await res.json();
+        if (!Array.isArray(requests)) throw new Error('Invalid response format');
 
-        const container = document.getElementById('requestsContainer');
+        const container = document.getElementById('request-list');
         container.innerHTML = '';
-
-        requests.forEach(request => {
-          const div = document.createElement('div');
-          div.className = 'request';
-          div.innerHTML = `
-            <strong>Username:</strong> ${request.username}<br>
-            <strong>Age:</strong> ${request.age}<br>
-            <strong>Discord:</strong> ${request.discord}<br>
-            <strong>Reason:</strong> ${request.reason}<br><br>
-            <button onclick="approve(${request.id})">Approve</button>
-            <button onclick="deny(${request.id})">Deny</button>
-          `;
-          container.appendChild(div);
-        });
 
         if (requests.length === 0) {
           container.innerHTML = '<p>No pending requests.</p>';
+          return;
         }
 
+        requests.forEach(req => {
+          const item = document.createElement('div');
+          item.className = 'request-item';
+          item.innerHTML = `
+            <p><strong>Username:</strong> ${req.username}</p>
+            <p><strong>Age:</strong> ${req.age}</p>
+            <p><strong>Discord:</strong> ${req.discord}</p>
+            <p><strong>Reason:</strong> ${req.reason}</p>
+            <button onclick="approve(${req.id})">Approve</button>
+            <button onclick="deny(${req.id})">Deny</button>
+            <hr>
+          `;
+          container.appendChild(item);
+        });
       } catch (err) {
-        console.error('Error loading requests:', err);
+        console.error("Error loading requests:", err);
+        document.getElementById('request-list').innerHTML = `<p style="color: red;">Failed to load requests.</p>`;
       }
     }
 
     async function approve(id) {
-      await fetch('/approve-request', {
+      await fetch('/approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id })
@@ -68,7 +57,7 @@
     }
 
     async function deny(id) {
-      await fetch('/deny-request', {
+      await fetch('/deny', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id })
@@ -76,7 +65,7 @@
       loadRequests();
     }
 
-    window.onload = loadRequests;
+    loadRequests();
   </script>
 </body>
 </html>
