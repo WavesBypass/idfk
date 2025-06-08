@@ -1,3 +1,4 @@
+// server.js
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
@@ -7,110 +8,176 @@ const path = require('path');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// PostgreSQL connection pool
 const pool = new Pool({
   user: 'doadmin',
   host: 'db-postgresql-nyc1-97903-do-user-22678364-0.f.db.ondigitalocean.com',
   database: 'defaultdb',
-  password: 'AVNS_pmydiR8acsiQlbtVTQF', // keep this secret
+  password: 'AVNS_pmydiR8acsiQlbtVTQF',
   port: 25060,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false },
 });
 
-// Middleware
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+
 app.use(session({
   secret: 'piget-secret-key',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 } // 1 week
+  cookie: { maxAge: 7*24*60*60*1000 }
 }));
 
-// Serve static files without /public in URL
+// Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Auto-create users table if not exists
-async function createUsersTable() {
-  const query = `
-    CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      username VARCHAR(50) UNIQUE NOT NULL,
-      password VARCHAR(255) NOT NULL,
-      age INTEGER NOT NULL,
-      discord VARCHAR(100) NOT NULL,
-      reason TEXT NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `;
+// Create tables if missing
+async function createTables() {
   try {
-    await pool.query(query);
-    console.log('Users table is ready.');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(50) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        age INTEGER NOT NULL,
+        discord VARCHAR(100) NOT NULL,
+        reason TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS registration_requests (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(50) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        age INTEGER NOT NULL,
+        discord VARCHAR(100) NOT NULL,
+        reason TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    console.log('Tables are ready');
   } catch (err) {
-    console.error('Error creating users table:', err);
+    console.error('Error creating tables:', err);
   }
 }
-createUsersTable();
+createTables();
 
-// Register route
+// Register - POST /register
 app.post('/register', async (req, res) => {
   const { username, password, age, discord, reason } = req.body;
   if (!username || !password || !age || !discord || !reason) {
-    return res.status(400).send('Missing required fields');
+    return res.status(400).json({ success: false, message: 'All fields are required' });
   }
-
   const ageInt = parseInt(age, 10);
   if (isNaN(ageInt)) {
-    return res.status(400).send('Age must be a valid number');
+    return res.status(400).json({ success: false, message: 'Age must be a number' });
   }
-
   try {
+    // Check if username exists in users or registration_requests
+    const userCheck = await pool.query('SELECT 1 FROM users WHERE username = $1', [username]);
+    if (userCheck.rowCount > 0) {
+      return res.status(400).json({ success: false, message: 'Username already registered' });
+    }
+    const requestCheck = await pool.query('SELECT 1 FROM registration_requests WHERE username = $1', [username]);
+    if (requestCheck.rowCount > 0) {
+      return res.status(400).json({ success: false, message: 'Registration request for this username is pending' });
+    }
+
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Insert into registration_requests
     await pool.query(
-      `INSERT INTO users (username, password, age, discord, reason)
+      `INSERT INTO registration_requests (username, password, age, discord, reason)
        VALUES ($1, $2, $3, $4, $5)`,
       [username, hashedPassword, ageInt, discord, reason]
     );
-    res.redirect('/login.html');
+
+    res.json({ success: true, message: 'Registration request submitted, pending approval' });
+
   } catch (err) {
-    console.error('Registration error:', err);
-    res.status(500).send('Registration failed');
+    console.error('Register error:', err);
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
-// Login route
+// Login - POST /login
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
-    return res.status(400).send('Missing username or password');
+    return res.status(400).json({ success: false, message: 'Username and password required' });
   }
   try {
     const userResult = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
     if (userResult.rowCount === 0) {
-      return res.status(401).send('Invalid credentials');
+      return res.status(401).json({ success: false, message: 'Invalid username or password' });
     }
     const user = userResult.rows[0];
-    const passwordMatch = await bcrypt.compare(password, user.password);
-    if (!passwordMatch) {
-      return res.status(401).send('Invalid credentials');
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      return res.status(401).json({ success: false, message: 'Invalid username or password' });
     }
     req.session.userId = user.id;
-    res.redirect('/stats.html');
+    res.json({ success: true, message: 'Logged in successfully' });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).send('Login failed');
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
-// Middleware to redirect logged-in users from login page to stats.html
+// Middleware to redirect logged-in user away from /login.html
 app.get('/login.html', (req, res, next) => {
-  if (req.session.userId) {
-    return res.redirect('/stats.html');
-  }
+  if (req.session.userId) return res.redirect('/stats.html');
   next();
 });
 
-// Start server
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+// Forms page - GET /forms (staff)
+// Returns JSON with pending requests (for simple testing)
+app.get('/forms', async (req, res) => {
+  try {
+    const requests = await pool.query('SELECT id, username, age, discord, reason, created_at FROM registration_requests ORDER BY created_at ASC');
+    res.json({ success: true, requests: requests.rows });
+  } catch (err) {
+    console.error('Get forms error:', err);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
 });
+
+// Approve registration request - POST /forms/approve
+app.post('/forms/approve', async (req, res) => {
+  const { id } = req.body;
+  if (!id) return res.status(400).json({ success: false, message: 'Request id is required' });
+
+  try {
+    // Get request data
+    const reqRes = await pool.query('SELECT * FROM registration_requests WHERE id = $1', [id]);
+    if (reqRes.rowCount === 0) {
+      return res.status(404).json({ success: false, message: 'Request not found' });
+    }
+    const request = reqRes.rows[0];
+
+    // Insert into users table
+    await pool.query(
+      `INSERT INTO users (username, password, age, discord, reason) VALUES ($1, $2, $3, $4, $5)`,
+      [request.username, request.password, request.age, request.discord, request.reason]
+    );
+
+    // Delete request
+    await pool.query('DELETE FROM registration_requests WHERE id = $1', [id]);
+
+    res.json({ success: true, message: 'User approved and created' });
+  } catch (err) {
+    console.error('Approve error:', err);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Deny registration request - POST /forms/deny
+app.post('/forms/deny', async (req, res) => {
+  const { id } = req.body;
+  if (!id) return res.status(400).json({ success: false, message: 'Request id is required' });
+  try {
+    await pool.query('DELETE FROM registration_requests WHERE id = $1', [id]);
+    res.json({ success: true, message: 'Request denied and
