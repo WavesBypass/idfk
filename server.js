@@ -1,117 +1,116 @@
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
-const path = require('path');
 const { Pool } = require('pg');
+const path = require('path');
 
 const app = express();
+const port = process.env.PORT || 3000;
 
-// === Database connection ===
+// PostgreSQL connection pool
 const pool = new Pool({
   user: 'doadmin',
   host: 'db-postgresql-nyc1-97903-do-user-22678364-0.f.db.ondigitalocean.com',
   database: 'defaultdb',
-  password: 'AVNS_pmydiR8acsiQlbtVTQF',
+  password: 'AVNS_pmydiR8acsiQlbtVTQF', // keep this secret
   port: 25060,
-  ssl: {
-    rejectUnauthorized: false
-  }
+  ssl: { rejectUnauthorized: false }
 });
 
-// === Middleware ===
-app.use(express.json());
+// Middleware
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 app.use(session({
-  secret: 'yourSecretKeyHere',
+  secret: 'piget-secret-key',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false } // Use true if HTTPS enforced
+  cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 } // 1 week
 }));
 
-// Serve static files from /public without showing /public in URL
+// Serve static files without /public in URL
 app.use(express.static(path.join(__dirname, 'public')));
 
-// === Auto-create tables ===
-(async () => {
+// Auto-create users table if not exists
+async function createUsersTable() {
+  const query = `
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(50) UNIQUE NOT NULL,
+      password VARCHAR(255) NOT NULL,
+      age INTEGER NOT NULL,
+      discord VARCHAR(100) NOT NULL,
+      reason TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+  `;
   try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        age INT,
-        discord TEXT
-      );
-    `);
-    console.log('✅ Users table ready');
+    await pool.query(query);
+    console.log('Users table is ready.');
   } catch (err) {
-    console.error('❌ Failed to create table:', err);
+    console.error('Error creating users table:', err);
   }
-})();
+}
+createUsersTable();
 
-// === Routes ===
-
-// Register
+// Register route
 app.post('/register', async (req, res) => {
-  const { username, password, age, discord } = req.body;
-  if (!username || !password || !age || !discord) {
-    return res.status(400).send('Missing fields');
+  const { username, password, age, discord, reason } = req.body;
+  if (!username || !password || !age || !discord || !reason) {
+    return res.status(400).send('Missing required fields');
   }
+
+  const ageInt = parseInt(age, 10);
+  if (isNaN(ageInt)) {
+    return res.status(400).send('Age must be a valid number');
+  }
+
   try {
-    const hashed = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
     await pool.query(
-      'INSERT INTO users (username, password, age, discord) VALUES ($1, $2, $3, $4)',
-      [username, hashed, age, discord]
+      `INSERT INTO users (username, password, age, discord, reason)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [username, hashedPassword, ageInt, discord, reason]
     );
     res.redirect('/login.html');
   } catch (err) {
-    console.error('❌ Registration error:', err);
+    console.error('Registration error:', err);
     res.status(500).send('Registration failed');
   }
 });
 
-// Login
+// Login route
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).send('Missing username or password');
+  }
   try {
-    const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
-    if (result.rows.length === 0) return res.status(401).send('Invalid username or password');
-
-    const user = result.rows[0];
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(401).send('Invalid username or password');
-
-    req.session.user = { id: user.id, username: user.username };
+    const userResult = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    if (userResult.rowCount === 0) {
+      return res.status(401).send('Invalid credentials');
+    }
+    const user = userResult.rows[0];
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
+      return res.status(401).send('Invalid credentials');
+    }
+    req.session.userId = user.id;
     res.redirect('/stats.html');
   } catch (err) {
-    console.error('❌ Login error:', err);
+    console.error('Login error:', err);
     res.status(500).send('Login failed');
   }
 });
 
-// Check login status
-app.get('/check-session', (req, res) => {
-  if (req.session.user) {
-    res.json({ loggedIn: true, username: req.session.user.username });
-  } else {
-    res.json({ loggedIn: false });
+// Middleware to redirect logged-in users from login page to stats.html
+app.get('/login.html', (req, res, next) => {
+  if (req.session.userId) {
+    return res.redirect('/stats.html');
   }
+  next();
 });
 
-// Logout
-app.get('/logout', (req, res) => {
-  req.session.destroy(() => {
-    res.redirect('/login.html');
-  });
-});
-
-// Redirect root to register
-app.get('/', (req, res) => {
-  res.redirect('/register.html');
-});
-
-// === Start Server ===
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+// Start server
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
 });
