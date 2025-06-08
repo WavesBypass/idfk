@@ -7,19 +7,15 @@ const { Pool } = require('pg');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// PostgreSQL connection
 const db = new Pool({
   user: 'doadmin',
   host: 'db-postgresql-nyc1-97903-do-user-22678364-0.f.db.ondigitalocean.com',
   database: 'defaultdb',
   password: 'AVNS_pmydiR8acsiQlbtVTQF',
   port: 25060,
-  ssl: {
-    rejectUnauthorized: false
-  }
+  ssl: { rejectUnauthorized: false }
 });
 
-// Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(session({
@@ -28,33 +24,9 @@ app.use(session({
   saveUninitialized: true
 }));
 
-// Serve public files without "/public" in URL
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Auto-create tables
-async function initDB() {
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS users (
-      id SERIAL PRIMARY KEY,
-      username TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL
-    );
-  `);
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS requests (
-      id SERIAL PRIMARY KEY,
-      username TEXT NOT NULL,
-      password TEXT NOT NULL,
-      age TEXT,
-      discord TEXT,
-      reason TEXT,
-      status TEXT DEFAULT 'pending'
-    );
-  `);
-}
-initDB().catch(console.error);
-
-// Login endpoint
+// Check if user exists
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -71,16 +43,11 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Check session on login page
 app.get('/check-session', (req, res) => {
-  if (req.session.user) {
-    res.json({ loggedIn: true });
-  } else {
-    res.json({ loggedIn: false });
-  }
+  res.json({ loggedIn: !!req.session.user });
 });
 
-// Submit form (registration request)
+// Register request (Form submission)
 app.post('/submit-request', async (req, res) => {
   const { username, password, age, discord, reason } = req.body;
 
@@ -93,50 +60,50 @@ app.post('/submit-request', async (req, res) => {
     const existingRequest = await db.query('SELECT * FROM requests WHERE username = $1 AND status = $2', [username, 'pending']);
 
     if (existingUser.rows.length > 0 || existingRequest.rows.length > 0) {
-      return res.status(409).json({ success: false, message: 'Username already taken or pending' });
+      return res.status(409).json({ success: false, message: 'Username taken or pending' });
     }
 
-    await db.query('INSERT INTO requests (username, password, age, discord, reason) VALUES ($1, $2, $3, $4, $5)', [
-      username, password, age, discord, reason
-    ]);
+    await db.query(
+      'INSERT INTO requests (username, password, age, discord, reason) VALUES ($1, $2, $3, $4, $5)',
+      [username, password, age, discord, reason]
+    );
 
     res.json({ success: true });
   } catch (err) {
-    console.error('Request submission error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error('Submit request error:', err);
+    res.status(500).json({ success: false, message: 'Database error' });
   }
 });
 
-// Get pending requests
+// Get pending forms
 app.get('/requests', async (req, res) => {
   try {
     const result = await db.query("SELECT * FROM requests WHERE status = 'pending'");
     res.json(result.rows);
   } catch (err) {
-    console.error('Error fetching requests:', err);
+    console.error('Requests fetch error:', err);
     res.status(500).send('Error loading requests');
   }
 });
 
-// Approve a request
+// Approve
 app.post('/approve/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const request = await db.query('SELECT * FROM requests WHERE id = $1', [id]);
-    if (request.rows.length === 0) return res.status(404).send('Request not found');
-
     const { username, password } = request.rows[0];
+
     await db.query('INSERT INTO users (username, password) VALUES ($1, $2)', [username, password]);
     await db.query("UPDATE requests SET status = 'approved' WHERE id = $1", [id]);
 
     res.sendStatus(200);
   } catch (err) {
     console.error('Approve error:', err);
-    res.status(500).send('Error approving request');
+    res.status(500).send('Approve failed');
   }
 });
 
-// Deny a request
+// Deny
 app.post('/deny/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -144,11 +111,10 @@ app.post('/deny/:id', async (req, res) => {
     res.sendStatus(200);
   } catch (err) {
     console.error('Deny error:', err);
-    res.status(500).send('Error denying request');
+    res.status(500).send('Deny failed');
   }
 });
 
-// Start server
 app.listen(port, () => {
-  console.log(`Piget server running on port ${port}`);
+  console.log(`Server running on port ${port}`);
 });
