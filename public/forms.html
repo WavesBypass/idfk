@@ -1,37 +1,36 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Form Requests</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Form Submissions</title>
   <link rel="stylesheet" href="css/form.css">
 </head>
 <body>
-  <h1>Pending Requests</h1>
-  <div id="requestsContainer"></div>
+  <div class="form-container">
+    <h1>Pending Join Requests</h1>
+    <div id="requests"></div>
+  </div>
 
   <script>
     async function loadRequests() {
       try {
         const response = await fetch('/requests');
-        if (!response.ok) throw new Error('HTTP ' + response.status);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const requests = await response.json();
-        const container = document.getElementById('requestsContainer');
+        const container = document.getElementById('requests');
         container.innerHTML = '';
-
-        if (!Array.isArray(requests)) {
-          throw new Error('Invalid response format');
-        }
 
         requests.forEach(req => {
           const div = document.createElement('div');
+          div.className = 'request';
           div.innerHTML = `
             <p><strong>Username:</strong> ${req.username}</p>
+            <p><strong>Age:</strong> ${req.age}</p>
+            <p><strong>Discord:</strong> ${req.discord}</p>
             <p><strong>Reason:</strong> ${req.reason}</p>
-            <p><strong>Status:</strong> ${req.status}</p>
-            ${req.status === 'pending' ? `
-              <button onclick="handleRequest(${req.id}, 'approve')">Approve</button>
-              <button onclick="handleRequest(${req.id}, 'deny')">Deny</button>
-            ` : ''}
-            <hr>
+            <button onclick="approve('${req.id}')">Approve</button>
+            <button onclick="deny('${req.id}')">Deny</button>
           `;
           container.appendChild(div);
         });
@@ -40,22 +39,14 @@
       }
     }
 
-    async function handleRequest(id, action) {
-      try {
-        const response = await fetch('/approve-request', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, action })
-        });
-        const result = await response.json();
-        if (result.success) {
-          loadRequests();
-        } else {
-          alert('Failed: ' + (result.error || 'Unknown error'));
-        }
-      } catch (err) {
-        console.error('Handle request error:', err);
-      }
+    async function approve(id) {
+      await fetch(`/approve/${id}`, { method: 'POST' });
+      loadRequests();
+    }
+
+    async function deny(id) {
+      await fetch(`/deny/${id}`, { method: 'POST' });
+      loadRequests();
     }
 
     loadRequests();
