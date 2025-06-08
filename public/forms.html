@@ -2,66 +2,56 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Pending Forms - Piget</title>
+  <title>Form Requests</title>
   <link rel="stylesheet" href="forms.css" />
 </head>
 <body>
-  <h1>Pending Registration Requests</h1>
-  <div id="requestsContainer">Loading...</div>
+  <h1>Pending Registration Forms</h1>
+  <div id="requestsContainer">Loading requests...</div>
 
   <script>
-    async function fetchRequests() {
-      try {
-        const res = await fetch('/requests');
-        const data = await res.json();
-        const container = document.getElementById('requestsContainer');
-        container.innerHTML = '';
+    async function loadRequests() {
+      const res = await fetch('/requests');
+      const data = await res.json();
+      const container = document.getElementById('requestsContainer');
+      container.innerHTML = '';
 
-        if (!data.length) {
-          container.innerHTML = '<p>No requests found.</p>';
-          return;
-        }
+      if (!data.length) {
+        container.innerHTML = '<p>No pending requests.</p>';
+        return;
+      }
 
-        data.forEach(request => {
-          const div = document.createElement('div');
-          div.className = 'request-card';
-          div.innerHTML = `
-            <p><strong>Username:</strong> ${request.username}</p>
-            <p><strong>Age:</strong> ${request.age}</p>
-            <p><strong>Discord:</strong> ${request.discord}</p>
-            <p><strong>Reason:</strong> ${request.reason}</p>
-            <button onclick="handleAction('${request.id}', 'approve')">Approve</button>
-            <button onclick="handleAction('${request.id}', 'deny')">Deny</button>
-          `;
-          container.appendChild(div);
-        });
-      } catch (err) {
-        console.error(err);
-        document.getElementById('requestsContainer').innerHTML = '<p>Error loading requests.</p>';
+      data.forEach(req => {
+        const div = document.createElement('div');
+        div.className = 'request';
+        div.innerHTML = `
+          <p><strong>Username:</strong> ${req.username}</p>
+          <p><strong>Age:</strong> ${req.age}</p>
+          <p><strong>Discord:</strong> ${req.discord}</p>
+          <p><strong>Reason:</strong> ${req.reason}</p>
+          <button onclick="handleRequest('${req.id}', 'approve')">Approve</button>
+          <button onclick="handleRequest('${req.id}', 'deny')">Deny</button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    async function handleRequest(id, action) {
+      const res = await fetch(`/requests/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+
+      if (res.ok) {
+        alert(`${action}d!`);
+        loadRequests();
+      } else {
+        alert('Action failed');
       }
     }
 
-    async function handleAction(id, action) {
-      try {
-        const res = await fetch(`/requests/${id}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action }),
-        });
-
-        if (res.ok) {
-          alert(`${action}d successfully!`);
-          fetchRequests();
-        } else {
-          alert('Error: could not complete action.');
-        }
-      } catch (err) {
-        alert('Server error.');
-      }
-    }
-
-    fetchRequests();
+    loadRequests();
   </script>
 </body>
 </html>
