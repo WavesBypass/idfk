@@ -1,71 +1,62 @@
 const express = require('express');
 const session = require('express-session');
-const pg = require('pg');
-const path = require('path');
 const bcrypt = require('bcrypt');
+const path = require('path');
+const { Pool } = require('pg');
+
 const app = express();
 
-// PostgreSQL config
-const pool = new pg.Pool({
+// === Database connection ===
+const pool = new Pool({
   user: 'doadmin',
   host: 'db-postgresql-nyc1-97903-do-user-22678364-0.f.db.ondigitalocean.com',
   database: 'defaultdb',
   password: 'AVNS_pmydiR8acsiQlbtVTQF',
   port: 25060,
-  ssl: { rejectUnauthorized: false }
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
-// Middleware
+// === Middleware ===
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(session({
-  secret: 'piget-secret',
+  secret: 'yourSecretKeyHere',
   resave: false,
-  saveUninitialized: false
+  saveUninitialized: false,
+  cookie: { secure: false } // Use true if HTTPS enforced
 }));
+
+// Serve static files from /public without showing /public in URL
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Auto-create tables on startup
-async function createTables() {
+// === Auto-create tables ===
+(async () => {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
-        age INTEGER,
+        age INT,
         discord TEXT
       );
     `);
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS requests (
-        id SERIAL PRIMARY KEY,
-        username TEXT NOT NULL,
-        password TEXT NOT NULL,
-        age INTEGER,
-        discord TEXT,
-        status TEXT DEFAULT 'pending'
-      );
-    `);
-    console.log('✅ Tables ensured.');
+    console.log('✅ Users table ready');
   } catch (err) {
-    console.error('Error creating tables:', err);
+    console.error('❌ Failed to create table:', err);
   }
-}
-createTables();
+})();
 
-// Routes
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+// === Routes ===
 
-app.get('/login', (req, res) => {
-  if (req.session.userId) return res.redirect('/stats.html');
-  res.sendFile(path.join(__dirname, 'public', 'login.html'));
-});
-
+// Register
 app.post('/register', async (req, res) => {
   const { username, password, age, discord } = req.body;
+  if (!username || !password || !age || !discord) {
+    return res.status(400).send('Missing fields');
+  }
   try {
     const hashed = await bcrypt.hash(password, 10);
     await pool.query(
@@ -74,73 +65,53 @@ app.post('/register', async (req, res) => {
     );
     res.redirect('/login.html');
   } catch (err) {
-    console.error(err);
+    console.error('❌ Registration error:', err);
     res.status(500).send('Registration failed');
   }
 });
 
+// Login
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
     const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
-    if (result.rows.length === 0) return res.status(401).send('Invalid credentials');
+    if (result.rows.length === 0) return res.status(401).send('Invalid username or password');
+
     const user = result.rows[0];
-    const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return res.status(401).send('Invalid credentials');
-    req.session.userId = user.id;
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) return res.status(401).send('Invalid username or password');
+
+    req.session.user = { id: user.id, username: user.username };
     res.redirect('/stats.html');
   } catch (err) {
-    console.error(err);
-    res.status(500).send('Login error');
+    console.error('❌ Login error:', err);
+    res.status(500).send('Login failed');
   }
 });
 
-app.post('/submit-request', async (req, res) => {
-  const { username, password, age, discord } = req.body;
-  try {
-    await pool.query(
-      'INSERT INTO requests (username, password, age, discord, status) VALUES ($1, $2, $3, $4, $5)',
-      [username, password, age, discord, 'pending']
-    );
-    res.redirect('/success.html');
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Form submission failed');
+// Check login status
+app.get('/check-session', (req, res) => {
+  if (req.session.user) {
+    res.json({ loggedIn: true, username: req.session.user.username });
+  } else {
+    res.json({ loggedIn: false });
   }
 });
 
-app.get('/forms', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT * FROM requests ORDER BY id DESC');
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Error fetching forms');
-  }
+// Logout
+app.get('/logout', (req, res) => {
+  req.session.destroy(() => {
+    res.redirect('/login.html');
+  });
 });
 
-app.post('/forms/approve', async (req, res) => {
-  const { id } = req.body;
-  try {
-    await pool.query('UPDATE requests SET status = $1 WHERE id = $2', ['approved', id]);
-    res.sendStatus(200);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Approval failed');
-  }
+// Redirect root to register
+app.get('/', (req, res) => {
+  res.redirect('/register.html');
 });
 
-app.post('/forms/deny', async (req, res) => {
-  const { id } = req.body;
-  try {
-    await pool.query('UPDATE requests SET status = $1 WHERE id = $2', ['denied', id]);
-    res.sendStatus(200);
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Denial failed');
-  }
-});
-
-// Start server
+// === Start Server ===
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+});
