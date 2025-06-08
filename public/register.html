@@ -1,28 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Register - Piget</title>
-<link rel="stylesheet" href="auth.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Register - Piget</title>
+  <link rel="stylesheet" href="css/auth.css" />
 </head>
 <body>
-  <nav class="auth-navbar">
+  <div class="auth-navbar">
     <div class="nav-logo">Piget</div>
     <div class="nav-links">
+      <a href="register.html">Register</a>
       <a href="login.html">Login</a>
     </div>
-  </nav>
+  </div>
 
   <div class="login-container">
-    <h1 class="login-heading">Register Request</h1>
-    <form id="registerForm" action="/submit-request" method="POST" class="login-form">
-      <input type="text" name="username" placeholder="Username" required minlength="3" maxlength="20" />
-      <input type="password" name="password" placeholder="Password" required minlength="6" />
-      <input type="number" name="age" placeholder="Age" required min="5" max="120" />
-      <input type="text" name="discord" placeholder="Discord Username" required />
-      <textarea name="reason" placeholder="Reason for joining Piget" required rows="3"></textarea>
-      <button type="submit">Send Request</button>
+    <h2 class="login-heading">Register for Piget</h2>
+    <form class="login-form" action="/register" method="POST">
+      <input type="text" name="username" placeholder="Username" required />
+      <input type="password" name="password" placeholder="Password" required />
+      <input type="number" name="age" placeholder="Age" required />
+      <input type="text" name="discord" placeholder="Discord Username (e.g. user#0000)" required />
+      <button type="submit">Register</button>
     </form>
   </div>
 </body>
