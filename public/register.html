@@ -1,48 +1,29 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Request to Join</title>
-  <link rel="stylesheet" href="css/auth.css" />
-  <style>
-    .popup {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: rgba(0,128,0,0.9);
-      color: white;
-      padding: 10px 20px;
-      border-radius: 8px;
-      display: none;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Register Form</title>
+  <link rel="stylesheet" href="forms.css" />
 </head>
 <body>
   <div class="auth-navbar">
     <div class="nav-logo">Piget</div>
+    <div class="nav-links">
+      <a href="register.html">Register</a>
+      <a href="forms.html">Forms</a>
+    </div>
   </div>
-
   <div class="login-container">
-    <h1 class="login-heading">Request to Join</h1>
-    <form action="/submit-request" method="POST" class="login-form">
-      <input type="text" name="username" placeholder="Desired Username" required />
-      <input type="number" name="age" placeholder="Age" required />
-      <input type="text" name="discord" placeholder="Discord Username" required />
-      <textarea name="reason" placeholder="Why do you want to join?" required></textarea>
-      <button type="submit">Submit Request</button>
+    <h2 class="login-heading">Submit Form</h2>
+    <form id="formRequest" class="login-form">
+      <input type="text" name="username" placeholder="Username" required />
+      <textarea name="message" placeholder="Your request..." required></textarea>
+      <button type="submit">Submit</button>
     </form>
+    <div id="popup" class="popup">Form submitted successfully!</div>
   </div>
-
-  <div id="popup" class="popup">Request submitted! Await approval.</div>
-
-  <script>
-    // Show popup if ?sent=1 in URL
-    if (location.search.includes('sent=1')) {
-      const pop = document.getElementById('popup');
-      pop.style.display = 'block';
-      setTimeout(() => pop.style.display = 'none', 4000);
-    }
-  </script>
+  <script src="form.js"></script>
 </body>
 </html>

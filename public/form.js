@@ -1,25 +1,31 @@
+
 document.getElementById('formRequest').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const formData = new FormData(e.target);
-  const data = Object.fromEntries(formData.entries());
+  const form = e.target;
+  const data = {
+    username: form.username.value,
+    message: form.message.value
+  };
 
-  const response = await fetch('/submit-request', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
+  try {
+    const res = await fetch('/submit-form', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
 
-  const popup = document.getElementById('popup');
-  if (response.ok) {
-    popup.innerText = 'Request submitted successfully!';
-    popup.style.display = 'block';
-    popup.style.color = 'lightgreen';
-    e.target.reset();
-  } else {
-    popup.innerText = 'Error submitting request.';
-    popup.style.display = 'block';
-    popup.style.color = 'red';
+    const result = await res.json();
+    if (result.success) {
+      document.getElementById('popup').style.display = 'block';
+      setTimeout(() => {
+        document.getElementById('popup').style.display = 'none';
+        form.reset();
+      }, 2000);
+    } else {
+      alert('Submission failed.');
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Error submitting form.');
   }
-
-  setTimeout(() => popup.style.display = 'none', 3000);
 });
