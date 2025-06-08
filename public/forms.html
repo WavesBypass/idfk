@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Piget Forms Review</title>
+  <title>Review Requests</title>
   <link rel="stylesheet" href="css/form.css">
 </head>
 <body>
   <div class="form-review-container">
-    <h1>Pending User Requests</h1>
+    <h1>Pending Requests</h1>
     <div id="request-list">Loading...</div>
   </div>
 
@@ -17,7 +17,8 @@
         const res = await fetch('/requests');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const requests = await res.json();
-        if (!Array.isArray(requests)) throw new Error('Invalid response format');
+
+        if (!Array.isArray(requests)) throw new Error('Invalid format');
 
         const container = document.getElementById('request-list');
         container.innerHTML = '';
@@ -29,12 +30,11 @@
 
         requests.forEach(req => {
           const item = document.createElement('div');
-          item.className = 'request-item';
           item.innerHTML = `
-            <p><strong>Username:</strong> ${req.username}</p>
-            <p><strong>Age:</strong> ${req.age}</p>
-            <p><strong>Discord:</strong> ${req.discord}</p>
-            <p><strong>Reason:</strong> ${req.reason}</p>
+            <strong>${req.username}</strong><br>
+            Age: ${req.age}<br>
+            Discord: ${req.discord}<br>
+            Reason: ${req.reason}<br>
             <button onclick="approve(${req.id})">Approve</button>
             <button onclick="deny(${req.id})">Deny</button>
             <hr>
@@ -43,7 +43,7 @@
         });
       } catch (err) {
         console.error("Error loading requests:", err);
-        document.getElementById('request-list').innerHTML = `<p style="color: red;">Failed to load requests.</p>`;
+        document.getElementById('request-list').innerHTML = `<p style="color:red;">Failed to load requests.</p>`;
       }
     }
 
