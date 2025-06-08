@@ -7,62 +7,39 @@
   <link rel="stylesheet" href="css/auth.css" />
 </head>
 <body>
-  <div class="auth-navbar">
-    <div class="nav-logo">Piget</div>
-    <div class="nav-links">
-      <a href="login.html">Login</a>
-    </div>
-  </div>
-
   <div class="login-container">
-    <h2 class="login-heading">Request Access</h2>
-    <form id="registerForm" class="login-form">
+    <h2 class="login-heading">Piget Registration</h2>
+    <form class="login-form" id="registerForm">
       <input type="text" name="username" placeholder="Username" required />
-      <input type="password" name="password" placeholder="Password" required />
-      <input type="text" name="discord" placeholder="Discord Username" required />
-      <input type="number" name="age" placeholder="Age" required />
       <input type="text" name="reason" placeholder="Why do you want to join?" required />
-      <button type="submit">Submit Request</button>
+      <input type="text" name="age" placeholder="Age" required />
+      <input type="text" name="discord" placeholder="Discord Username" required />
+      <button type="submit">Submit</button>
     </form>
-    <p id="errorMessage" style="color: red; display: none;"></p>
-    <p id="successMessage" style="color: lightgreen; display: none;"></p>
+    <div id="formStatus"></div>
   </div>
 
   <script>
-    const form = document.getElementById('registerForm');
-    const errorMessage = document.getElementById('errorMessage');
-    const successMessage = document.getElementById('successMessage');
-
-    form.addEventListener('submit', async (e) => {
+    document.getElementById('registerForm').addEventListener('submit', async function (e) {
       e.preventDefault();
 
-      const formData = new FormData(form);
-      const data = Object.fromEntries(formData.entries());
+      const formData = {
+        username: this.username.value,
+        reason: this.reason.value,
+        age: this.age.value,
+        discord: this.discord.value
+      };
 
-      try {
-        const res = await fetch('/submit-request', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
+      const res = await fetch('/submit-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
 
-        const result = await res.json();
-
-        if (res.ok) {
-          successMessage.textContent = "Request submitted successfully!";
-          successMessage.style.display = "block";
-          errorMessage.style.display = "none";
-          form.reset();
-        } else {
-          errorMessage.textContent = result.error || "Something went wrong.";
-          errorMessage.style.display = "block";
-          successMessage.style.display = "none";
-        }
-      } catch (err) {
-        errorMessage.textContent = "Server error.";
-        errorMessage.style.display = "block";
-        successMessage.style.display = "none";
-      }
+      const result = await res.json();
+      const status = document.getElementById('formStatus');
+      status.textContent = result.message;
+      status.style.color = result.success ? 'lightgreen' : 'red';
     });
   </script>
 </body>
