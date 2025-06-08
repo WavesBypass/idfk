@@ -1,64 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Form Requests</title>
-  <link rel="stylesheet" href="css/form.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Form Review</title>
 </head>
 <body>
-  <h2>Pending Registration Requests</h2>
-  <div id="requestsContainer">Loading...</div>
+  <h2>Pending Join Requests</h2>
+  <div id="requests"></div>
 
   <script>
     async function loadRequests() {
-      try {
-        const res = await fetch('/requests');
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const requests = await res.json();
-
-        const container = document.getElementById('requestsContainer');
-        container.innerHTML = '';
-
-        if (requests.length === 0) {
-          container.innerHTML = '<p>No pending requests.</p>';
-          return;
-        }
-
-        requests.forEach(req => {
-          const div = document.createElement('div');
-          div.innerHTML = `
-            <p><strong>Username:</strong> ${req.username}</p>
-            <p><strong>Reason:</strong> ${req.reason}</p>
-            <p><strong>Age:</strong> ${req.age}</p>
-            <p><strong>Discord:</strong> ${req.discord}</p>
-            <p>Status: ${req.status}</p>
-            <button onclick="updateRequest(${req.id}, 'approved')">Approve</button>
-            <button onclick="updateRequest(${req.id}, 'denied')">Deny</button>
-            <hr/>
-          `;
-          container.appendChild(div);
-        });
-      } catch (err) {
-        console.error('Error loading requests:', err);
-        document.getElementById('requestsContainer').innerText = 'Failed to load requests.';
-      }
+      const res = await fetch('/requests');
+      const data = await res.json();
+      const container = document.getElementById('requests');
+      container.innerHTML = '';
+      data.forEach(req => {
+        const el = document.createElement('div');
+        el.innerHTML = \`
+          <strong>\${req.username}</strong><br/>
+          Reason: \${req.reason}<br/>
+          <button onclick="approve(\${req.id})">Approve</button>
+          <button onclick="deny(\${req.id})">Deny</button>
+          <hr/>
+        \`;
+        container.appendChild(el);
+      });
     }
 
-    async function updateRequest(id, action) {
-      try {
-        const res = await fetch('/update-request', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, action })
-        });
+    async function approve(id) {
+      await fetch('/approve/' + id, { method: 'POST' });
+      loadRequests();
+    }
 
-        const result = await res.json();
-        alert(result.message);
-        loadRequests(); // Reload updated list
-      } catch (err) {
-        console.error('Error updating request:', err);
-        alert('Failed to update request');
-      }
+    async function deny(id) {
+      await fetch('/deny/' + id, { method: 'POST' });
+      loadRequests();
     }
 
     loadRequests();

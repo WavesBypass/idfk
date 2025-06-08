@@ -1,6 +1,4 @@
 const { Pool } = require('pg');
-
-// Accept self-signed certificates (for DigitalOcean)
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 const pool = new Pool({
