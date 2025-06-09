@@ -7,9 +7,8 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Serve static files from /public
+// Serve static HTML from /public
 app.use(express.static('public', { extensions: ['html'] }));
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -19,33 +18,7 @@ app.use(session({
   saveUninitialized: false
 }));
 
-// Initialize DB
-async function initDB() {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        username VARCHAR(255) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL
-      );
-    `);
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS requests (
-        id SERIAL PRIMARY KEY,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        reason TEXT,
-        status TEXT DEFAULT 'pending'
-      );
-    `);
-    console.log('✅ Tables ready');
-  } catch (err) {
-    console.error('❌ Error creating tables:', err);
-  }
-}
-initDB();
-
-// Submit form request
+// Submit join request
 app.post('/submit-request', async (req, res) => {
   const { username, password, reason } = req.body;
   try {
@@ -61,7 +34,7 @@ app.post('/submit-request', async (req, res) => {
   }
 });
 
-// Get pending requests
+// View pending requests
 app.get('/requests', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM requests WHERE status = $1', ['pending']);
@@ -103,7 +76,7 @@ app.post('/deny/:id', async (req, res) => {
   }
 });
 
-// Login route
+// Login
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -121,6 +94,32 @@ app.post('/login', async (req, res) => {
   } catch (err) {
     console.error("❌ Login error:", err);
     res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// ✅ TEMPORARY DEBUG ROUTE — visit /debug-init to create DB tables
+app.get('/debug-init', async (req, res) => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(255) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL
+      );
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS requests (
+        id SERIAL PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        reason TEXT,
+        status TEXT DEFAULT 'pending'
+      );
+    `);
+    res.send("✅ Tables initialized successfully.");
+  } catch (err) {
+    console.error("❌ Debug init error:", err);
+    res.status(500).send("Error initializing tables.");
   }
 });
 
