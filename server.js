@@ -7,7 +7,6 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Serve static HTML from /public
 app.use(express.static('public', { extensions: ['html'] }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -18,7 +17,7 @@ app.use(session({
   saveUninitialized: false
 }));
 
-// Submit join request
+// Submit form request
 app.post('/submit-request', async (req, res) => {
   const { username, password, reason } = req.body;
   try {
@@ -34,14 +33,15 @@ app.post('/submit-request', async (req, res) => {
   }
 });
 
-// View pending requests
+// Get pending requests with detailed error logging
 app.get('/requests', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM requests WHERE status = $1', ['pending']);
-    console.log("Fetched requests:", result.rows);
+    console.log("✅ Pending requests fetched:", result.rows);
     res.status(200).json(result.rows);
   } catch (err) {
-    console.error("❌ Fetch requests error:", err);
+    console.error("❌ Fetch requests error:", err.message);
+    console.error("🛠️ Full stack trace:", err.stack);
     res.status(500).json({ error: 'Failed to fetch requests' });
   }
 });
@@ -76,7 +76,7 @@ app.post('/deny/:id', async (req, res) => {
   }
 });
 
-// Login
+// Login route
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -97,7 +97,7 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// ✅ TEMPORARY DEBUG ROUTE — visit /debug-init to create DB tables
+// TEMP DEBUG ROUTE to create missing tables
 app.get('/debug-init', async (req, res) => {
   try {
     await pool.query(`
