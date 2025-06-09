@@ -49,6 +49,8 @@
           el.style.marginBottom = "20px";
           el.innerHTML = `
             <strong>${req.username}</strong><br/>
+            Age: ${req.age || 'N/A'}<br/>
+            Discord: ${req.discord || 'N/A'}<br/>
             Reason: ${req.reason}<br/>
           `;
 
@@ -110,7 +112,6 @@
       top: 20px;
       left: 50%;
       transform: translateX(-50%);
-      background-color: rgba(0, 128, 0, 0.85);
       color: white;
       padding: 12px 24px;
       border-radius: var(--radius);
