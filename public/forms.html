@@ -4,12 +4,18 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Form Review</title>
-  <link rel="stylesheet" href="auth.css">
+  <link rel="stylesheet" href="css/auth.css">
 </head>
 <body>
   <div class="login-container">
     <h2 class="login-heading">Pending Requests</h2>
-    <div id="requests">Loading...</div>
+    <div id="pending">Loading...</div>
+
+    <h2 class="login-heading">Approved Requests</h2>
+    <div id="approved"></div>
+
+    <h2 class="login-heading">Denied Requests</h2>
+    <div id="denied"></div>
   </div>
 
   <div id="popup" class="popup" style="display:none;"></div>
@@ -18,33 +24,50 @@
     function showPopup(message, isError = false) {
       const popup = document.getElementById('popup');
       popup.textContent = message;
-      popup.style.backgroundColor = isError ? 'rgba(255,0,0,0.8)' : 'rgba(0,128,0,0.8)';
+      popup.style.backgroundColor = isError ? 'rgba(255, 0, 0, 0.85)' : 'rgba(0, 128, 0, 0.85)';
       popup.style.display = 'block';
-      setTimeout(() => { popup.style.display = 'none'; }, 3000);
+      setTimeout(() => {
+        popup.style.display = 'none';
+      }, 3000);
     }
 
     async function loadRequests() {
       try {
         const res = await fetch('/requests');
         const data = await res.json();
-        if (!Array.isArray(data)) {
-          document.getElementById('requests').innerText = 'Error loading requests.';
-          return;
-        }
 
-        const container = document.getElementById('requests');
-        container.innerHTML = '';
+        const pending = document.getElementById('pending');
+        const approved = document.getElementById('approved');
+        const denied = document.getElementById('denied');
+
+        pending.innerHTML = '';
+        approved.innerHTML = '';
+        denied.innerHTML = '';
+
         data.forEach(req => {
           const el = document.createElement('div');
-          el.innerHTML =
-            "<strong>" + req.username + "</strong><br/>" +
-            "Reason: " + req.reason + "<br/>" +
-            "<button onclick='approve(" + req.id + ")'>Approve</button> " +
-            "<button onclick='deny(" + req.id + ")'>Deny</button><hr/>";
-          container.appendChild(el);
+          el.style.marginBottom = "20px";
+          el.innerHTML = `
+            <strong>${req.username}</strong><br/>
+            Reason: ${req.reason}<br/>
+          `;
+
+          if (req.status === 'pending') {
+            el.innerHTML += `
+              <button onclick="approve(${req.id})">Approve</button>
+              <button onclick="deny(${req.id})">Deny</button><hr/>
+            `;
+            pending.appendChild(el);
+          } else if (req.status === 'approved') {
+            el.innerHTML += `<span style="color: lightgreen;">✔ Approved</span><hr/>`;
+            approved.appendChild(el);
+          } else if (req.status === 'denied') {
+            el.innerHTML += `<span style="color: orangered;">✖ Denied</span><hr/>`;
+            denied.appendChild(el);
+          }
         });
       } catch (err) {
-        document.getElementById('requests').innerText = 'Server error loading requests.';
+        showPopup("❌ Error loading requests: " + err.message, true);
       }
     }
 
@@ -87,6 +110,7 @@
       top: 20px;
       left: 50%;
       transform: translateX(-50%);
+      background-color: rgba(0, 128, 0, 0.85);
       color: white;
       padding: 12px 24px;
       border-radius: var(--radius);
