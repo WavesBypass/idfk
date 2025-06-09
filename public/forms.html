@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Form Review</title>
 </head>
@@ -17,13 +17,13 @@
       container.innerHTML = '';
       data.forEach(req => {
         const el = document.createElement('div');
-        el.innerHTML = \`
-          <strong>\${req.username}</strong><br/>
-          Reason: \${req.reason}<br/>
-          <button onclick="approve(\${req.id})">Approve</button>
-          <button onclick="deny(\${req.id})">Deny</button>
+        el.innerHTML = `
+          <strong>${req.username}</strong><br/>
+          Reason: ${req.reason}<br/>
+          <button onclick="approve(${req.id})">Approve</button>
+          <button onclick="deny(${req.id})">Deny</button>
           <hr/>
-        \`;
+        `;
         container.appendChild(el);
       });
     }
