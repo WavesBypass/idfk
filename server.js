@@ -17,7 +17,6 @@ app.use(session({
   saveUninitialized: false
 }));
 
-// Submit form request
 app.post('/submit-request', async (req, res) => {
   const { username, password, reason } = req.body;
   try {
@@ -33,11 +32,9 @@ app.post('/submit-request', async (req, res) => {
   }
 });
 
-// Get all requests
 app.get('/requests', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM requests');
-    console.log("✅ Requests fetched:", result.rows);
     res.status(200).json(result.rows);
   } catch (err) {
     console.error("❌ Fetch requests error:", err.message);
@@ -45,20 +42,14 @@ app.get('/requests', async (req, res) => {
   }
 });
 
-// Approve route with detailed error propagation
 app.post('/approve/:id', async (req, res) => {
   const requestId = req.params.id;
   try {
-    console.log("Approving request ID:", requestId);
     const result = await pool.query('SELECT * FROM requests WHERE id = $1', [requestId]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Request not found' });
-    }
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Request not found' });
     const { username, password } = result.rows[0];
-    const insertRes = await pool.query('INSERT INTO users (username, password) VALUES ($1, $2)', [username, password]);
-    console.log("User insert result:", insertRes.rowCount);
-    const updateRes = await pool.query('UPDATE requests SET status = $1 WHERE id = $2', ['approved', requestId]);
-    console.log("Request update result:", updateRes.rowCount);
+    await pool.query('INSERT INTO users (username, password) VALUES ($1, $2)', [username, password]);
+    await pool.query('UPDATE requests SET status = $1 WHERE id = $2', ['approved', requestId]);
     res.status(200).json({ success: true });
   } catch (err) {
     console.error("❌ Approve error:", err.stack);
@@ -66,13 +57,10 @@ app.post('/approve/:id', async (req, res) => {
   }
 });
 
-// Deny route with detailed error propagation
 app.post('/deny/:id', async (req, res) => {
   const requestId = req.params.id;
   try {
-    console.log("Denying request ID:", requestId);
-    const updateRes = await pool.query('UPDATE requests SET status = $1 WHERE id = $2', ['denied', requestId]);
-    console.log("Request update result:", updateRes.rowCount);
+    await pool.query('UPDATE requests SET status = $1 WHERE id = $2', ['denied', requestId]);
     res.status(200).json({ success: true });
   } catch (err) {
     console.error("❌ Deny error:", err.stack);
@@ -80,14 +68,11 @@ app.post('/deny/:id', async (req, res) => {
   }
 });
 
-// Login route
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
     const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
-    if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
+    if (result.rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
     const user = result.rows[0];
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
@@ -99,29 +84,14 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Debug-init route
-app.get('/debug-init', async (req, res) => {
+// 🛠️ Debug fix for missing 'status' column
+app.get('/debug-fix-schema', async (req, res) => {
   try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        username VARCHAR(255) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL
-      );
-    `);
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS requests (
-        id SERIAL PRIMARY KEY,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        reason TEXT,
-        status TEXT DEFAULT 'pending'
-      );
-    `);
-    res.send("✅ Tables initialized successfully.");
+    await pool.query("ALTER TABLE requests ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending';");
+    res.send("✅ 'status' column added to requests table.");
   } catch (err) {
-    console.error("❌ Debug init error:", err.stack);
-    res.status(500).send("Error initializing tables.");
+    console.error("❌ Schema fix error:", err.stack);
+    res.status(500).send("Schema update failed.");
   }
 });
 
