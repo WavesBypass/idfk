@@ -7,7 +7,9 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// Serve static files from /public
 app.use(express.static('public', { extensions: ['html'] }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -46,8 +48,6 @@ initDB();
 // Submit form request
 app.post('/submit-request', async (req, res) => {
   const { username, password, reason } = req.body;
-  console.log("New request:", username);
-
   try {
     const hashed = await bcrypt.hash(password, 10);
     await pool.query(
@@ -65,6 +65,7 @@ app.post('/submit-request', async (req, res) => {
 app.get('/requests', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM requests WHERE status = $1', ['pending']);
+    console.log("Fetched requests:", result.rows);
     res.status(200).json(result.rows);
   } catch (err) {
     console.error("❌ Fetch requests error:", err);
@@ -99,6 +100,27 @@ app.post('/deny/:id', async (req, res) => {
   } catch (err) {
     console.error("❌ Deny error:", err);
     res.status(500).json({ error: 'Denial failed' });
+  }
+});
+
+// Login route
+app.post('/login', async (req, res) => {
+  const { username, password } = req.body;
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const user = result.rows[0];
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+
+    req.session.userId = user.id;
+    res.status(200).json({ success: true });
+  } catch (err) {
+    console.error("❌ Login error:", err);
+    res.status(500).json({ error: 'Login failed' });
   }
 });
 
