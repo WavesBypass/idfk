@@ -7,25 +7,37 @@
 </head>
 <body>
   <h2>Pending Join Requests</h2>
-  <div id="requests"></div>
+  <div id="requests">Loading...</div>
 
   <script>
     async function loadRequests() {
-      const res = await fetch('/requests');
-      const data = await res.json();
-      const container = document.getElementById('requests');
-      container.innerHTML = '';
-      data.forEach(req => {
-        const el = document.createElement('div');
-        el.innerHTML = `
-          <strong>${req.username}</strong><br/>
-          Reason: ${req.reason}<br/>
-          <button onclick="approve(${req.id})">Approve</button>
-          <button onclick="deny(${req.id})">Deny</button>
-          <hr/>
-        `;
-        container.appendChild(el);
-      });
+      try {
+        const res = await fetch('/requests');
+        const data = await res.json();
+
+        if (!Array.isArray(data)) {
+          console.error("Unexpected response:", data);
+          document.getElementById('requests').innerText = 'Error loading requests.';
+          return;
+        }
+
+        const container = document.getElementById('requests');
+        container.innerHTML = '';
+        data.forEach(req => {
+          const el = document.createElement('div');
+          el.innerHTML = \`
+            <strong>\${req.username}</strong><br/>
+            Reason: \${req.reason}<br/>
+            <button onclick="approve(\${req.id})">Approve</button>
+            <button onclick="deny(\${req.id})">Deny</button>
+            <hr/>
+          \`;
+          container.appendChild(el);
+        });
+      } catch (err) {
+        console.error("Request fetch failed:", err);
+        document.getElementById('requests').innerText = 'Server error loading requests.';
+      }
     }
 
     async function approve(id) {
