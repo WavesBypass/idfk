@@ -3,23 +3,26 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Piget Register</title>
+  <title>Piget Registration</title>
   <link rel="stylesheet" href="css/auth.css">
 </head>
 <body>
   <div class="auth-navbar">
     <div class="nav-logo">Piget</div>
     <div class="nav-links">
-      <a href="register.html">Register</a>
+      <a href="login.html">Login</a>
     </div>
   </div>
 
   <div class="login-container">
-    <h2 class="login-heading">Register</h2>
+    <h2 class="login-heading">Request to Join</h2>
     <form id="registerForm" class="login-form">
       <input type="text" name="username" placeholder="Username" required />
       <input type="password" name="password" placeholder="Password" required />
-      <button type="submit">Register</button>
+      <input type="number" name="age" placeholder="Your Age" required />
+      <input type="text" name="discord" placeholder="Discord Username" required />
+      <input type="text" name="reason" placeholder="Why do you want to join?" required />
+      <button type="submit">Submit Request</button>
     </form>
   </div>
 
@@ -39,8 +42,12 @@
       const form = e.target;
       const data = {
         username: form.username.value,
-        password: form.password.value
+        password: form.password.value,
+        age: form.age.value,
+        discord: form.discord.value,
+        reason: form.reason.value
       };
+
       try {
         const res = await fetch('/submit-request', {
           method: 'POST',
@@ -48,17 +55,18 @@
           body: JSON.stringify(data)
         });
         const result = await res.json();
-        if (res.ok && result.success) {
-          showPopup("✅ Register successful!");
-          document.getElementById('registerForm').reset();
+        if (res.ok) {
+          showPopup("✅ Request submitted! Wait for approval.");
+          form.reset();
         } else {
-          showPopup("❌ Register failed: " + (result.error || 'Unknown error'), true);
+          showPopup("❌ Request failed: " + (result.error || 'Unknown error'), true);
         }
       } catch (err) {
-        showPopup("❌ Register error: " + err.message, true);
+        showPopup("❌ Error: " + err.message, true);
       }
     });
   </script>
+
   <style>
     .popup {
       position: fixed;
