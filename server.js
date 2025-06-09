@@ -12,7 +12,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'secret',
+  secret: process.env.SESSION_SECRET || '9Lfj8ksnCqU2zVr4WmXyPq1bTiNgHu7z',
   resave: false,
   saveUninitialized: false
 }));
@@ -23,8 +23,8 @@ app.post('/submit-request', async (req, res) => {
   try {
     const hashed = await bcrypt.hash(password, 10);
     await pool.query(
-      'INSERT INTO requests (username, password, reason) VALUES ($1, $2, $3)',
-      [username, hashed, reason]
+      'INSERT INTO requests (username, password, reason, status) VALUES ($1, $2, $3, $4)',
+      [username, hashed, reason, 'pending']
     );
     res.status(200).json({ success: true });
   } catch (err) {
@@ -33,15 +33,14 @@ app.post('/submit-request', async (req, res) => {
   }
 });
 
-// Get pending requests with detailed error logging
+// ✅ FIXED: Get all requests (no WHERE filter)
 app.get('/requests', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM requests WHERE status = $1', ['pending']);
-    console.log("✅ Pending requests fetched:", result.rows);
+    const result = await pool.query('SELECT * FROM requests'); // removed WHERE
+    console.log("✅ Requests fetched:", result.rows);
     res.status(200).json(result.rows);
   } catch (err) {
     console.error("❌ Fetch requests error:", err.message);
-    console.error("🛠️ Full stack trace:", err.stack);
     res.status(500).json({ error: 'Failed to fetch requests' });
   }
 });
@@ -76,7 +75,7 @@ app.post('/deny/:id', async (req, res) => {
   }
 });
 
-// Login route
+// Login
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -97,7 +96,7 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// TEMP DEBUG ROUTE to create missing tables
+// Debug table creation route
 app.get('/debug-init', async (req, res) => {
   try {
     await pool.query(`
