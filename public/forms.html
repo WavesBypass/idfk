@@ -4,19 +4,30 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Form Review</title>
+  <link rel="stylesheet" href="auth.css">
 </head>
 <body>
-  <h2>Pending Join Requests</h2>
-  <div id="requests">Loading...</div>
+  <div class="login-container">
+    <h2 class="login-heading">Pending Requests</h2>
+    <div id="requests">Loading...</div>
+  </div>
+
+  <div id="popup" class="popup" style="display:none;"></div>
 
   <script>
+    function showPopup(message, isError = false) {
+      const popup = document.getElementById('popup');
+      popup.textContent = message;
+      popup.style.backgroundColor = isError ? 'rgba(255,0,0,0.8)' : 'rgba(0,128,0,0.8)';
+      popup.style.display = 'block';
+      setTimeout(() => { popup.style.display = 'none'; }, 3000);
+    }
+
     async function loadRequests() {
       try {
         const res = await fetch('/requests');
         const data = await res.json();
-
         if (!Array.isArray(data)) {
-          console.error("Unexpected response:", data);
           document.getElementById('requests').innerText = 'Error loading requests.';
           return;
         }
@@ -33,7 +44,6 @@
           container.appendChild(el);
         });
       } catch (err) {
-        console.error("Request fetch failed:", err);
         document.getElementById('requests').innerText = 'Server error loading requests.';
       }
     }
@@ -43,13 +53,13 @@
         const res = await fetch('/approve/' + id, { method: 'POST' });
         const data = await res.json();
         if (res.ok) {
-          alert("✅ Approved!");
+          showPopup("✅ Approved!");
           loadRequests();
         } else {
-          alert("❌ Approve failed: " + (data.error || 'Unknown error'));
+          showPopup("❌ Approve failed: " + (data.error || 'Unknown error'), true);
         }
       } catch (err) {
-        alert("❌ Approve error: " + err.message);
+        showPopup("❌ Approve error: " + err.message, true);
       }
     }
 
@@ -58,17 +68,32 @@
         const res = await fetch('/deny/' + id, { method: 'POST' });
         const data = await res.json();
         if (res.ok) {
-          alert("❌ Denied.");
+          showPopup("❌ Denied.");
           loadRequests();
         } else {
-          alert("❌ Deny failed: " + (data.error || 'Unknown error'));
+          showPopup("❌ Deny failed: " + (data.error || 'Unknown error'), true);
         }
       } catch (err) {
-        alert("❌ Deny error: " + err.message);
+        showPopup("❌ Deny error: " + err.message, true);
       }
     }
 
     loadRequests();
   </script>
+
+  <style>
+    .popup {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      padding: 12px 24px;
+      border-radius: var(--radius);
+      font-family: var(--font-body);
+      font-weight: 600;
+      z-index: 9999;
+    }
+  </style>
 </body>
 </html>
