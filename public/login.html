@@ -28,12 +28,14 @@
           body: JSON.stringify(data)
         });
         const result = await res.json();
-        alert(result.success ? "Login successful!" : result.error);
-        if (result.success) {
-          window.location.href = "/dashboard.html";
+        if (res.ok && result.success) {
+          alert("✅ Login successful!");
+          window.location.href = "/stats.html";
+        } else {
+          alert("❌ Login failed: " + (result.error || 'Unknown error'));
         }
-      } catch {
-        alert("Server error");
+      } catch (err) {
+        alert("❌ Login error: " + err.message);
       }
     });
   </script>

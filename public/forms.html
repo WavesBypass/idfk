@@ -39,13 +39,33 @@
     }
 
     async function approve(id) {
-      await fetch('/approve/' + id, { method: 'POST' });
-      loadRequests();
+      try {
+        const res = await fetch('/approve/' + id, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+          alert("✅ Approved!");
+          loadRequests();
+        } else {
+          alert("❌ Approve failed: " + (data.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert("❌ Approve error: " + err.message);
+      }
     }
 
     async function deny(id) {
-      await fetch('/deny/' + id, { method: 'POST' });
-      loadRequests();
+      try {
+        const res = await fetch('/deny/' + id, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+          alert("❌ Denied.");
+          loadRequests();
+        } else {
+          alert("❌ Deny failed: " + (data.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert("❌ Deny error: " + err.message);
+      }
     }
 
     loadRequests();

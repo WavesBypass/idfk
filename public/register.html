@@ -1,18 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Join Piget</title>
+  <title>Piget Join Request</title>
 </head>
 <body>
-  <h2>Request to Join Piget</h2>
+  <h2>Join Piget</h2>
   <form id="registerForm">
-    <input type="text" name="username" placeholder="Username" required />
-    <input type="password" name="password" placeholder="Password" required />
-    <textarea name="reason" placeholder="Why do you want to join?" required></textarea>
+    <input type="text" name="username" placeholder="Desired Username" required />
+    <input type="password" name="password" placeholder="Choose a Password" required />
+    <input type="text" name="reason" placeholder="Why do you want to join Piget?" required />
     <button type="submit">Submit Request</button>
   </form>
+
   <script>
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -22,6 +23,7 @@
         password: form.password.value,
         reason: form.reason.value
       };
+
       try {
         const res = await fetch('/submit-request', {
           method: 'POST',
@@ -29,9 +31,14 @@
           body: JSON.stringify(data)
         });
         const result = await res.json();
-        alert(result.success ? "Request submitted!" : result.error);
-      } catch {
-        alert("Server error");
+        if (res.ok) {
+          alert("✅ Request submitted! Wait for approval.");
+          form.reset();
+        } else {
+          alert("❌ Request failed: " + (result.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert("❌ Error: " + err.message);
       }
     });
   </script>
