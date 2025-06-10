@@ -5,107 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Piget Stats</title>
   <link rel="stylesheet" href="css/auth.css">
-  <style>
-    body {
-      background-color: #ff85c1;
-      background-image: url('../images/pigetback.png');
-      background-size: cover;
-      font-family: 'Nunito', sans-serif;
-      color: white;
-      margin: 0;
-      padding: 0;
-    }
-    .navbar {
-      background: rgba(255, 255, 255, 0.1);
-      display: flex;
-      justify-content: center;
-      padding: 15px 0;
-      font-weight: bold;
-    }
-    .navbar a {
-      margin: 0 15px;
-      color: white;
-      text-decoration: none;
-      font-size: 18px;
-    }
-    .navbar a.active {
-      border-bottom: 2px solid white;
-    }
-    .profile-section {
-      text-align: center;
-      padding: 20px;
-    }
-    .profile-img {
-      width: 100px;
-      height: 100px;
-    }
-    .username {
-      font-size: 24px;
-      font-weight: bold;
-      margin: 10px 0;
-    }
-    .claim-btn {
-      background: #333;
-      color: gold;
-      border: none;
-      padding: 10px 20px;
-      font-weight: bold;
-      margin-left: 10px;
-      border-radius: 8px;
-    }
-    .progress {
-      background: #ddd;
-      height: 10px;
-      width: 200px;
-      margin: 10px auto;
-      border-radius: 5px;
-    }
-    .progress-bar {
-      background: blue;
-      height: 100%;
-      width: 80%;
-      border-radius: 5px;
-    }
-    .btn-row {
-      margin: 20px;
-    }
-    .btn-row button {
-      margin: 0 10px;
-      padding: 10px 20px;
-      background: rgba(255,255,255,0.3);
-      border: none;
-      border-radius: 8px;
-      color: white;
-    }
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      text-align: center;
-      margin: 20px auto;
-      gap: 15px;
-      max-width: 800px;
-    }
-    .stat-box {
-      background: rgba(0,0,0,0.5);
-      padding: 15px;
-      border-radius: 10px;
-    }
-    .friends-list {
-      margin: 0 auto;
-      max-width: 300px;
-      background: rgba(255,255,255,0.1);
-      padding: 10px;
-      border-radius: 10px;
-    }
-    .friend {
-      background: rgba(0,0,0,0.3);
-      padding: 5px 10px;
-      margin: 5px 0;
-      border-radius: 6px;
-    }
-  </style>
 </head>
-<body>
+<body style="background-color:#ff85c1;font-family:Nunito,sans-serif;color:white;">
   <div class="navbar">
     <a class="active">Stats</a>
     <a href="#">Leaderboard</a>
@@ -115,17 +16,19 @@
     <a href="#">Play</a>
   </div>
 
-  <div class="profile-section">
-    <img src="https://i.imgur.com/o9LzLhd.png" class="profile-img" />
+  <div class="profile-section" style="text-align:center;padding:20px;">
+    <img src="https://i.imgur.com/o9LzLhd.png" style="width:100px;height:100px;" />
     <div class="username" id="usernameDisplay">Loading... <button class="claim-btn">Claim</button></div>
-    <div class="progress"><div class="progress-bar"></div></div>
-    <div class="btn-row">
-      <button>Manage Inventory</button>
-      <button>Play</button>
+    <div class="progress" style="background:#ddd;height:10px;width:200px;margin:10px auto;border-radius:5px;">
+      <div class="progress-bar" style="background:blue;height:100%;width:80%;border-radius:5px;"></div>
+    </div>
+    <div style="margin:20px;">
+      <button style="margin:0 10px;padding:10px 20px;background:rgba(255,255,255,0.3);border:none;border-radius:8px;color:white;">Manage Inventory</button>
+      <button style="margin:0 10px;padding:10px 20px;background:rgba(255,255,255,0.3);border:none;border-radius:8px;color:white;">Play</button>
     </div>
   </div>
 
-  <div class="stats-grid">
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);text-align:center;margin:20px auto;gap:15px;max-width:800px;">
     <div class="stat-box"><div>Total Tokens</div><strong>999,999</strong></div>
     <div class="stat-box"><div>Rank</div><strong style="color:hotpink;">Divine</strong></div>
     <div class="stat-box"><div>Games Played</div><strong>001</strong></div>
@@ -137,7 +40,7 @@
     <div class="stat-box"><div>Titles</div><strong>15</strong></div>
   </div>
 
-  <div class="friends-list">
+  <div style="margin:0 auto;max-width:300px;background:rgba(255,255,255,0.1);padding:10px;border-radius:10px;">
     <h3 style="text-align:center;">Friends</h3>
     <div class="friend">HJr (Owner)</div>
     <div class="friend">Blooket Warrior (Warrior)</div>
