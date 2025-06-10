@@ -1,6 +1,7 @@
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
+const path = require('path');
 const pool = require('./db');
 require('dotenv').config();
 
@@ -10,14 +11,13 @@ const PORT = process.env.PORT || 8080;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 👇 Session setup
 app.use(session({
   secret: process.env.SESSION_SECRET || 'secret',
   resave: false,
   saveUninitialized: false
 }));
 
-// 👇 Middleware: protect logged-in pages
+// 🔒 Middleware to require login
 function requireLogin(req, res, next) {
   if (!req.session.userId) {
     return res.redirect('/login.html');
@@ -25,12 +25,36 @@ function requireLogin(req, res, next) {
   next();
 }
 
-// 👇 Public static files (including .html)
-app.use(express.static('public', { extensions: ['html'] }));
+// 🚫 Prevent static access to stats.html
+app.use(express.static('public', {
+  extensions: ['html'],
+  index: false,
+  setHeaders: (res, filePath) => {
+    if (path.basename(filePath) === 'stats.html') {
+      res.statusCode = 404;
+      res.end();
+    }
+  }
+}));
 
-// ✅ ROUTES
+// ✅ Serve stats.html only if logged in
+app.get('/stats.html', requireLogin, (req, res) => {
+  res.sendFile(__dirname + '/public/stats.html');
+});
 
-// Login endpoint
+// 👤 Logged-in user info
+app.get('/api/user', async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ error: 'Not logged in' });
+  try {
+    const result = await pool.query('SELECT username FROM users WHERE id = $1', [req.session.userId]);
+    if (!result.rows.length) return res.status(404).json({ error: 'User not found' });
+    res.json({ username: result.rows[0].username });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to load user' });
+  }
+});
+
+// 🔐 Login route
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -41,12 +65,11 @@ app.post('/login', async (req, res) => {
     req.session.userId = rows[0].id;
     res.json({ success: true });
   } catch (err) {
-    console.error("❌ Login error:", err);
     res.status(500).json({ error: 'Login failed' });
   }
 });
 
-// Submit register form (request)
+// 📝 Submit register form
 app.post('/submit-request', async (req, res) => {
   const { username, password, age, discord, reason } = req.body;
   try {
@@ -58,12 +81,11 @@ app.post('/submit-request', async (req, res) => {
     );
     res.status(200).json({ success: true });
   } catch (err) {
-    console.error("❌ Register error:", err);
     res.status(500).json({ error: 'Registration failed' });
   }
 });
 
-// Approve or deny requests
+// 📥 Form review API
 app.get('/requests', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM requests');
@@ -97,23 +119,7 @@ app.post('/deny/:id', async (req, res) => {
   }
 });
 
-// 👤 API for logged-in user info
-app.get('/api/user', async (req, res) => {
-  if (!req.session.userId) return res.status(401).json({ error: 'Not logged in' });
-  try {
-    const result = await pool.query('SELECT username FROM users WHERE id = $1', [req.session.userId]);
-    if (!result.rows.length) return res.status(404).json({ error: 'User not found' });
-    res.json({ username: result.rows[0].username });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to load user' });
-  }
-});
-
-// 👇 Lock stats.html behind login
-app.get('/stats.html', requireLogin, (req, res) => {
-  res.sendFile(__dirname + '/public/stats.html');
-});
-
+// ✅ Start the server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
