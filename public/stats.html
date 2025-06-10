@@ -117,7 +117,7 @@
 
   <div class="profile-section">
     <img src="https://i.imgur.com/o9LzLhd.png" class="profile-img" />
-    <div class="username">Piget Player <button class="claim-btn">Claim</button></div>
+    <div class="username" id="usernameDisplay">Loading... <button class="claim-btn">Claim</button></div>
     <div class="progress"><div class="progress-bar"></div></div>
     <div class="btn-row">
       <button>Manage Inventory</button>
@@ -148,5 +148,17 @@
     <div class="friend">leGOAT (Player)</div>
     <div class="friend">KadmosAlt (Mod)</div>
   </div>
+
+  <script>
+    fetch('/api/user')
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('usernameDisplay').innerHTML =
+          data.username + ' <button class="claim-btn">Claim</button>';
+      })
+      .catch(() => {
+        document.getElementById('usernameDisplay').textContent = "Error loading username";
+      });
+  </script>
 </body>
 </html>
