@@ -1,1 +1,80 @@
-<!DOCTYPE html><html><head><link rel='stylesheet' href='css/auth.css'></head><body><h1>Register Page</h1></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Piget Register</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+  <div class="auth-navbar">
+    <div class="nav-logo">Piget</div>
+    <div class="nav-links">
+      <a href="login.html">Login</a>
+    </div>
+  </div>
+
+  <div class="login-container">
+    <h2 class="login-heading">Request to Join</h2>
+    <form id="registerForm" class="login-form">
+      <input type="text" name="username" placeholder="Username" required />
+      <input type="password" name="password" placeholder="Password" required />
+      <input type="number" name="age" placeholder="Age" required />
+      <input type="text" name="discord" placeholder="Discord Username" required />
+      <input type="text" name="reason" placeholder="Why do you want to join?" required />
+      <button type="submit">Submit</button>
+    </form>
+  </div>
+
+  <div id="popup" class="popup" style="display:none;"></div>
+
+  <script>
+    function showPopup(msg, isError = false) {
+      const popup = document.getElementById('popup');
+      popup.textContent = msg;
+      popup.style.backgroundColor = isError ? 'rgba(255, 0, 0, 0.8)' : 'rgba(0, 128, 0, 0.8)';
+      popup.style.display = 'block';
+      setTimeout(() => popup.style.display = 'none', 3000);
+    }
+
+    document.getElementById('registerForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const f = e.target;
+      const payload = {
+        username: f.username.value,
+        password: f.password.value,
+        age: f.age.value,
+        discord: f.discord.value,
+        reason: f.reason.value
+      };
+      const res = await fetch('/submit-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (res.ok) {
+        showPopup('✅ Request submitted!');
+        f.reset();
+      } else {
+        showPopup(json.error || 'Something went wrong', true);
+      }
+    });
+  </script>
+
+  <style>
+    .popup {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 24px;
+      border-radius: 16px;
+      color: white;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 600;
+      z-index: 9999;
+    }
+  </style>
+</body>
+</html>
