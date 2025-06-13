@@ -67,9 +67,9 @@ body {
   box-shadow: var(--shadow);
   text-align: center;
   backdrop-filter: blur(12px);
-  max-width: 350px;
-  width: 90%;
+  width: fit-content;
   margin-top: 60px;
+  max-height: fit-content;
 }
 
 .login-heading {
