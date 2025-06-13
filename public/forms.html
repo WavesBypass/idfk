@@ -1,1 +1,76 @@
-<!DOCTYPE html><html><head><link rel='stylesheet' href='css/auth.css'></head><body><h1>Forms Page</h1></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Piget Forms</title>
+  <link rel="stylesheet" href="css/auth.css" />
+</head>
+<body>
+  <div class="login-container">
+    <h2 class="login-heading">Pending Requests</h2>
+    <div id="pending"></div>
+    <h2 class="login-heading">Approved</h2>
+    <div id="approved"></div>
+    <h2 class="login-heading">Denied</h2>
+    <div id="denied"></div>
+  </div>
+
+  <div id="popup" class="popup" style="display:none;"></div>
+
+  <script>
+    function showPopup(msg, isErr = false) {
+      const p = document.getElementById('popup');
+      p.textContent = msg;
+      p.style.backgroundColor = isErr ? 'rgba(255,0,0,0.8)' : 'rgba(0,128,0,0.8)';
+      p.style.display = 'block';
+      setTimeout(() => p.style.display = 'none', 3000);
+    }
+
+    async function loadRequests() {
+      const res = await fetch('/requests');
+      const data = await res.json();
+      ['pending', 'approved', 'denied'].forEach(id => document.getElementById(id).innerHTML = '');
+      data.forEach(r => {
+        const el = document.createElement('div');
+        el.innerHTML = `
+          <strong>${r.username}</strong><br/>
+          Age: ${r.age}<br/>
+          Discord: ${r.discord}<br/>
+          Reason: ${r.reason}<br/>
+        `;
+        if (r.status === 'pending') {
+          el.innerHTML += `<button onclick="approve(${r.id})">✅ Approve</button>
+                           <button onclick="deny(${r.id})">❌ Deny</button><hr/>`;
+          document.getElementById('pending').appendChild(el);
+        } else if (r.status === 'approved') {
+          el.innerHTML += `<span style="color:lightgreen;">✔ Approved</span><hr/>`;
+          document.getElementById('approved').appendChild(el);
+        } else if (r.status === 'denied') {
+          el.innerHTML += `<span style="color:red;">✖ Denied</span><hr/>`;
+          document.getElementById('denied').appendChild(el);
+        }
+      });
+    }
+
+    async function approve(id) {
+      const res = await fetch('/approve/' + id, { method: 'POST' });
+      const j = await res.json();
+      if (res.ok) {
+        showPopup("Approved!");
+        loadRequests();
+      } else showPopup(j.error || 'Failed to approve', true);
+    }
+
+    async function deny(id) {
+      const res = await fetch('/deny/' + id, { method: 'POST' });
+      const j = await res.json();
+      if (res.ok) {
+        showPopup("Denied.");
+        loadRequests();
+      } else showPopup(j.error || 'Failed to deny', true);
+    }
+
+    loadRequests();
+  </script>
+</body>
+</html>
