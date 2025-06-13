@@ -1,1 +1,1 @@
-<stats.js content here>
+fetch('/api/user').then(r=>r.json()).then(d=>document.getElementById('usernameDisplay').textContent='Welcome, '+d.username);
