@@ -11,40 +11,46 @@ const PORT = process.env.PORT || 8080;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Session setup
 app.use(session({
   secret: process.env.SESSION_SECRET || 'secret-key',
   resave: false,
   saveUninitialized: false
 }));
 
+// Middleware to protect routes
 function requireLogin(req, res, next) {
   if (!req.session.userId) return res.redirect('/login.html');
   next();
 }
 
-app.use(express.static(path.join(__dirname, 'public')));
+// ✅ Serve individual HTML routes (instead of full static access)
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
+app.get('/login.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
+app.get('/register.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));
+app.get('/stats.html', requireLogin, (req, res) => res.sendFile(path.join(__dirname, 'public', 'stats.html')));
 
-app.get('/stats.html', requireLogin, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'stats.html'));
-});
+// ✅ Still allow static access to css and other assets
+app.use('/css', express.static(path.join(__dirname, 'public', 'css')));
+app.use('/js', express.static(path.join(__dirname, 'public', 'js')));
+app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
 
-app.get('/api/user', async (req, res) => {
-  if (!req.session.userId) return res.status(401).json({ error: 'Not logged in' });
-  const { rows } = await pool.query('SELECT username FROM users WHERE id = $1', [req.session.userId]);
-  if (!rows.length) return res.status(404).json({ error: 'User not found' });
-  res.json({ username: rows[0].username });
-});
-
+// Handle login
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
-  const { rows } = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
-  if (!rows.length || !await bcrypt.compare(password, rows[0].password)) {
-    return res.status(401).json({ error: 'Invalid credentials' });
+  try {
+    const { rows } = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    if (!rows.length || !await bcrypt.compare(password, rows[0].password)) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    req.session.userId = rows[0].id;
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ error: 'Login failed' });
   }
-  req.session.userId = rows[0].id;
-  res.json({ success: true });
 });
 
+// Handle request form
 app.post('/submit-request', async (req, res) => {
   const { username, password, age, discord, reason } = req.body;
   const hashed = await bcrypt.hash(password, 10);
@@ -60,6 +66,7 @@ app.post('/submit-request', async (req, res) => {
   }
 });
 
+// Approve/deny
 app.get('/requests', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM requests');
@@ -83,6 +90,14 @@ app.post('/deny/:id', async (req, res) => {
   const id = req.params.id;
   await pool.query('UPDATE requests SET status = $1 WHERE id = $2', ['denied', id]);
   res.json({ success: true });
+});
+
+// API for frontend to get current user
+app.get('/api/user', async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ error: 'Not logged in' });
+  const { rows } = await pool.query('SELECT username FROM users WHERE id = $1', [req.session.userId]);
+  if (!rows.length) return res.status(404).json({ error: 'User not found' });
+  res.json({ username: rows[0].username });
 });
 
 app.listen(PORT, () => {
