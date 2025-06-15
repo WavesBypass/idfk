@@ -11,7 +11,10 @@ const PORT = process.env.PORT || 8080;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ Session with 7-day persistence & secure cookie
+// ✅ TRUST PROXY for DigitalOcean HTTPS sessions to work
+app.set('trust proxy', 1);
+
+// ✅ SESSION CONFIG (7 days, HTTPS only)
 app.use(session({
   secret: process.env.SESSION_SECRET || 'secret-key',
   resave: false,
@@ -19,28 +22,28 @@ app.use(session({
   cookie: {
     maxAge: 1000 * 60 * 60 * 24 * 7,  // 7 days
     sameSite: 'lax',
-    secure: true                      // because you're using https://piget.org
+    secure: true                     // must be true for HTTPS
   }
 }));
 
-// ✅ Protect route helper
+// ✅ Protect middleware
 function requireLogin(req, res, next) {
   if (!req.session.userId) return res.redirect('/login.html');
   next();
 }
 
-// ✅ Serve individual public pages
+// ✅ Serve HTML manually (so we can protect stats.html)
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/login.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/register.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));
 app.get('/stats.html', requireLogin, (req, res) => res.sendFile(path.join(__dirname, 'public', 'stats.html')));
 
-// ✅ Serve static folders (CSS, JS, Images, etc.)
+// ✅ Serve public assets
 app.use('/css', express.static(path.join(__dirname, 'public', 'css')));
 app.use('/js', express.static(path.join(__dirname, 'public', 'js')));
 app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
 
-// ✅ Login route
+// ✅ Login handler
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -55,7 +58,7 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// ✅ Register request submission
+// ✅ Register form submission
 app.post('/submit-request', async (req, res) => {
   const { username, password, age, discord, reason } = req.body;
   const hashed = await bcrypt.hash(password, 10);
@@ -71,7 +74,7 @@ app.post('/submit-request', async (req, res) => {
   }
 });
 
-// ✅ List all requests (for forms.html)
+// ✅ Get all form submissions
 app.get('/requests', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM requests');
@@ -81,7 +84,7 @@ app.get('/requests', async (req, res) => {
   }
 });
 
-// ✅ Approve a request and create user
+// ✅ Approve form request → move to users table
 app.post('/approve/:id', async (req, res) => {
   const id = req.params.id;
   try {
@@ -89,8 +92,6 @@ app.post('/approve/:id', async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Request not found' });
 
     const { username, password } = rows[0];
-
-    // Check if already exists (prevent duplicate usernames)
     const existing = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
     if (!existing.rows.length) {
       await pool.query('INSERT INTO users (username, password) VALUES ($1, $2)', [username, password]);
@@ -103,7 +104,7 @@ app.post('/approve/:id', async (req, res) => {
   }
 });
 
-// ✅ Deny a request
+// ✅ Deny form request
 app.post('/deny/:id', async (req, res) => {
   const id = req.params.id;
   try {
@@ -114,7 +115,7 @@ app.post('/deny/:id', async (req, res) => {
   }
 });
 
-// ✅ Current user info (used in stats.html)
+// ✅ API to get logged-in user's name
 app.get('/api/user', async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Not logged in' });
   try {
