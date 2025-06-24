@@ -8,10 +8,10 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// ✅ Required for HTTPS cookies behind proxy
+// ✅ Required for correct cookie behavior behind HTTPS proxy
 app.set('trust proxy', 1);
 
-// ✅ Force HTTP → HTTPS (must be above all routes)
+// ✅ Redirect all HTTP traffic to HTTPS
 app.use((req, res, next) => {
   if (!req.secure) {
     return res.redirect(`https://${req.headers.host}${req.url}`);
@@ -19,29 +19,30 @@ app.use((req, res, next) => {
   next();
 });
 
+// ✅ Body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ Secure session config
+// ✅ HTTPS session config
 app.use(session({
   name: 'piget.sid',
   secret: process.env.SESSION_SECRET || 'secret-key',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    maxAge: 1000 * 60 * 60 * 24 * 7,  // 7 days
+    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
     sameSite: 'lax',
-    secure: true                      // ✅ required for HTTPS cookies
+    secure: true                     // ✅ only works on HTTPS
   }
 }));
 
-// ✅ Login guard middleware
+// ✅ Protect routes middleware
 function requireLogin(req, res, next) {
   if (!req.session.userId) return res.redirect('/login.html');
   next();
 }
 
-// ✅ Public pages
+// ✅ Public routes
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/login.html', (req, res) => {
   if (req.session.userId) return res.redirect('/stats.html');
@@ -57,7 +58,7 @@ app.get('/settings.html', requireLogin, (req, res) => res.sendFile(path.join(__d
 app.get('/market.html', requireLogin, (req, res) => res.sendFile(path.join(__dirname, 'public', 'market.html')));
 app.get('/leaderboard.html', requireLogin, (req, res) => res.sendFile(path.join(__dirname, 'public', 'leaderboard.html')));
 
-// ✅ Static file routing
+// ✅ Static assets
 app.use('/css', express.static(path.join(__dirname, 'public', 'css')));
 app.use('/js', express.static(path.join(__dirname, 'public', 'js')));
 app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
@@ -84,7 +85,7 @@ app.post('/logout', (req, res) => {
   });
 });
 
-// ✅ Registration form
+// ✅ Registration (unchanged)
 app.post('/submit-request', async (req, res) => {
   const { username, password, age, discord, reason } = req.body;
   const hashed = await bcrypt.hash(password, 10);
@@ -100,7 +101,7 @@ app.post('/submit-request', async (req, res) => {
   }
 });
 
-// ✅ Get requests
+// ✅ View all requests
 app.get('/requests', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM requests');
@@ -141,7 +142,7 @@ app.post('/deny/:id', async (req, res) => {
   }
 });
 
-// ✅ Get current user
+// ✅ Get current user info
 app.get('/api/user', async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Not logged in' });
   try {
