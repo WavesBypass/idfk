@@ -8,39 +8,43 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-app.set('trust proxy', 1); // Trust proxy for HTTPS
+app.set('trust proxy', 1); // Important for HTTPS cookies behind proxy
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session config
+// ✅ Session config — works in HTTPS & keeps session on reload
 app.use(session({
+  name: 'piget.sid',
   secret: process.env.SESSION_SECRET || 'secret-key',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    maxAge: 1000 * 60 * 60 * 24 * 7,  // 7 days
+    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
     sameSite: 'lax',
-    secure: true                     // HTTPS only
+    secure: process.env.NODE_ENV === 'production'
   }
 }));
 
-// Middleware to protect routes
+// ✅ Middleware: Require login
 function requireLogin(req, res, next) {
   if (!req.session.userId) return res.redirect('/login.html');
   next();
 }
 
-// Serve public pages
+// ✅ Public page
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
+// ✅ Login page — redirect to stats if already logged in
 app.get('/login.html', (req, res) => {
   if (req.session.userId) return res.redirect('/stats.html');
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
+// ✅ Register page (untouched)
 app.get('/register.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));
 
-// Protected pages
+// ✅ Protected pages
 app.get('/stats.html', requireLogin, (req, res) => res.sendFile(path.join(__dirname, 'public', 'stats.html')));
 app.get('/forms.html', requireLogin, (req, res) => res.sendFile(path.join(__dirname, 'public', 'forms.html')));
 app.get('/inventory.html', requireLogin, (req, res) => res.sendFile(path.join(__dirname, 'public', 'inventory.html')));
@@ -48,12 +52,12 @@ app.get('/settings.html', requireLogin, (req, res) => res.sendFile(path.join(__d
 app.get('/market.html', requireLogin, (req, res) => res.sendFile(path.join(__dirname, 'public', 'market.html')));
 app.get('/leaderboard.html', requireLogin, (req, res) => res.sendFile(path.join(__dirname, 'public', 'leaderboard.html')));
 
-// Static assets
+// ✅ Static assets
 app.use('/css', express.static(path.join(__dirname, 'public', 'css')));
 app.use('/js', express.static(path.join(__dirname, 'public', 'js')));
 app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
 
-// Login handler
+// ✅ Login handler
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -68,7 +72,14 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Registration request handler
+// ✅ Logout handler
+app.post('/logout', (req, res) => {
+  req.session.destroy(() => {
+    res.redirect('/login.html');
+  });
+});
+
+// ✅ Registration request handler (unchanged)
 app.post('/submit-request', async (req, res) => {
   const { username, password, age, discord, reason } = req.body;
   const hashed = await bcrypt.hash(password, 10);
@@ -84,7 +95,7 @@ app.post('/submit-request', async (req, res) => {
   }
 });
 
-// Get all registration requests
+// ✅ Get all form submissions (unchanged)
 app.get('/requests', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM requests');
@@ -94,7 +105,7 @@ app.get('/requests', async (req, res) => {
   }
 });
 
-// Approve a registration request
+// ✅ Approve form request (unchanged)
 app.post('/approve/:id', async (req, res) => {
   const id = req.params.id;
   try {
@@ -114,7 +125,7 @@ app.post('/approve/:id', async (req, res) => {
   }
 });
 
-// Deny a registration request
+// ✅ Deny form request (unchanged)
 app.post('/deny/:id', async (req, res) => {
   const id = req.params.id;
   try {
@@ -125,7 +136,7 @@ app.post('/deny/:id', async (req, res) => {
   }
 });
 
-// API to get current logged-in user's username
+// ✅ Get current user (optional frontend helper)
 app.get('/api/user', async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Not logged in' });
   try {
@@ -137,7 +148,7 @@ app.get('/api/user', async (req, res) => {
   }
 });
 
-// Start server
+// ✅ Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
