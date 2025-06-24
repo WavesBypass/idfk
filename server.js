@@ -8,12 +8,14 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-app.set('trust proxy', 1); // Important for HTTPS cookies behind proxy
+// ✅ Enable for DigitalOcean/HTTPS-compatible setups
+app.set('trust proxy', 1);
 
+// ✅ Body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ Session config — works in HTTPS & keeps session on reload
+// ✅ SESSION CONFIG that WORKS without NODE_ENV or secure HTTPS setup
 app.use(session({
   name: 'piget.sid',
   secret: process.env.SESSION_SECRET || 'secret-key',
@@ -22,26 +24,24 @@ app.use(session({
   cookie: {
     maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production'
+    secure: false // ⚠️ Not secure, but it works on HTTP and DigitalOcean without NODE_ENV
   }
 }));
 
-// ✅ Middleware: Require login
+// ✅ Middleware to protect routes
 function requireLogin(req, res, next) {
   if (!req.session.userId) return res.redirect('/login.html');
   next();
 }
 
-// ✅ Public page
+// ✅ Public pages
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-// ✅ Login page — redirect to stats if already logged in
 app.get('/login.html', (req, res) => {
   if (req.session.userId) return res.redirect('/stats.html');
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-// ✅ Register page (untouched)
 app.get('/register.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));
 
 // ✅ Protected pages
@@ -79,7 +79,7 @@ app.post('/logout', (req, res) => {
   });
 });
 
-// ✅ Registration request handler (unchanged)
+// ✅ Registration request (unchanged)
 app.post('/submit-request', async (req, res) => {
   const { username, password, age, discord, reason } = req.body;
   const hashed = await bcrypt.hash(password, 10);
@@ -95,7 +95,7 @@ app.post('/submit-request', async (req, res) => {
   }
 });
 
-// ✅ Get all form submissions (unchanged)
+// ✅ View all requests (unchanged)
 app.get('/requests', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM requests');
@@ -105,7 +105,7 @@ app.get('/requests', async (req, res) => {
   }
 });
 
-// ✅ Approve form request (unchanged)
+// ✅ Approve request (unchanged)
 app.post('/approve/:id', async (req, res) => {
   const id = req.params.id;
   try {
@@ -125,7 +125,7 @@ app.post('/approve/:id', async (req, res) => {
   }
 });
 
-// ✅ Deny form request (unchanged)
+// ✅ Deny request (unchanged)
 app.post('/deny/:id', async (req, res) => {
   const id = req.params.id;
   try {
@@ -136,7 +136,7 @@ app.post('/deny/:id', async (req, res) => {
   }
 });
 
-// ✅ Get current user (optional frontend helper)
+// ✅ Get current user info (optional)
 app.get('/api/user', async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Not logged in' });
   try {
@@ -148,7 +148,7 @@ app.get('/api/user', async (req, res) => {
   }
 });
 
-// ✅ Start server
+// ✅ Start the server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
