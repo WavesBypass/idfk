@@ -8,13 +8,11 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+app.set('trust proxy', 1); // Trust proxy for HTTPS
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ TRUST PROXY for DigitalOcean HTTPS sessions to work
-app.set('trust proxy', 1);
-
-// ✅ SESSION CONFIG (7 days, HTTPS only)
+// Session config
 app.use(session({
   secret: process.env.SESSION_SECRET || 'secret-key',
   resave: false,
@@ -22,28 +20,40 @@ app.use(session({
   cookie: {
     maxAge: 1000 * 60 * 60 * 24 * 7,  // 7 days
     sameSite: 'lax',
-    secure: true                     // must be true for HTTPS
+    secure: true                     // HTTPS only
   }
 }));
 
-// ✅ Protect middleware
+// Middleware to protect routes
 function requireLogin(req, res, next) {
   if (!req.session.userId) return res.redirect('/login.html');
   next();
 }
 
-// ✅ Serve HTML manually (so we can protect stats.html)
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
-app.get('/login.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
-app.get('/register.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));
-app.get('/stats.html', requireLogin, (req, res) => res.sendFile(path.join(__dirname, 'public', 'stats.html')));
+// Serve public pages
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
-// ✅ Serve public assets
+app.get('/login.html', (req, res) => {
+  if (req.session.userId) return res.redirect('/stats.html');
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.get('/register.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));
+
+// Protected pages
+app.get('/stats.html', requireLogin, (req, res) => res.sendFile(path.join(__dirname, 'public', 'stats.html')));
+app.get('/forms.html', requireLogin, (req, res) => res.sendFile(path.join(__dirname, 'public', 'forms.html')));
+app.get('/inventory.html', requireLogin, (req, res) => res.sendFile(path.join(__dirname, 'public', 'inventory.html')));
+app.get('/settings.html', requireLogin, (req, res) => res.sendFile(path.join(__dirname, 'public', 'settings.html')));
+app.get('/market.html', requireLogin, (req, res) => res.sendFile(path.join(__dirname, 'public', 'market.html')));
+app.get('/leaderboard.html', requireLogin, (req, res) => res.sendFile(path.join(__dirname, 'public', 'leaderboard.html')));
+
+// Static assets
 app.use('/css', express.static(path.join(__dirname, 'public', 'css')));
 app.use('/js', express.static(path.join(__dirname, 'public', 'js')));
 app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
 
-// ✅ Login handler
+// Login handler
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -58,7 +68,7 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// ✅ Register form submission
+// Registration request handler
 app.post('/submit-request', async (req, res) => {
   const { username, password, age, discord, reason } = req.body;
   const hashed = await bcrypt.hash(password, 10);
@@ -74,7 +84,7 @@ app.post('/submit-request', async (req, res) => {
   }
 });
 
-// ✅ Get all form submissions
+// Get all registration requests
 app.get('/requests', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM requests');
@@ -84,7 +94,7 @@ app.get('/requests', async (req, res) => {
   }
 });
 
-// ✅ Approve form request → move to users table
+// Approve a registration request
 app.post('/approve/:id', async (req, res) => {
   const id = req.params.id;
   try {
@@ -104,7 +114,7 @@ app.post('/approve/:id', async (req, res) => {
   }
 });
 
-// ✅ Deny form request
+// Deny a registration request
 app.post('/deny/:id', async (req, res) => {
   const id = req.params.id;
   try {
@@ -115,7 +125,7 @@ app.post('/deny/:id', async (req, res) => {
   }
 });
 
-// ✅ API to get logged-in user's name
+// API to get current logged-in user's username
 app.get('/api/user', async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Not logged in' });
   try {
@@ -127,6 +137,7 @@ app.get('/api/user', async (req, res) => {
   }
 });
 
+// Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
