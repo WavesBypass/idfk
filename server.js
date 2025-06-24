@@ -8,14 +8,13 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// ✅ Enable for DigitalOcean/HTTPS-compatible setups
+// ✅ Must be set for HTTPS cookies to work on DigitalOcean
 app.set('trust proxy', 1);
 
-// ✅ Body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ SESSION CONFIG that WORKS without NODE_ENV or secure HTTPS setup
+// ✅ Secure HTTPS session config
 app.use(session({
   name: 'piget.sid',
   secret: process.env.SESSION_SECRET || 'secret-key',
@@ -23,12 +22,12 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
-    sameSite: 'lax',
-    secure: false // ⚠️ Not secure, but it works on HTTP and DigitalOcean without NODE_ENV
+    sameSite: 'lax',                // Works with HTTPS
+    secure: true                    // Required for HTTPS only
   }
 }));
 
-// ✅ Middleware to protect routes
+// ✅ Require login middleware
 function requireLogin(req, res, next) {
   if (!req.session.userId) return res.redirect('/login.html');
   next();
@@ -79,7 +78,7 @@ app.post('/logout', (req, res) => {
   });
 });
 
-// ✅ Registration request (unchanged)
+// ✅ Registration (unchanged)
 app.post('/submit-request', async (req, res) => {
   const { username, password, age, discord, reason } = req.body;
   const hashed = await bcrypt.hash(password, 10);
@@ -95,7 +94,7 @@ app.post('/submit-request', async (req, res) => {
   }
 });
 
-// ✅ View all requests (unchanged)
+// ✅ Get requests (unchanged)
 app.get('/requests', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM requests');
@@ -148,7 +147,7 @@ app.get('/api/user', async (req, res) => {
   }
 });
 
-// ✅ Start the server
+// ✅ Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
