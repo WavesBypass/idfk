@@ -1,3 +1,4 @@
+
 const express = require('express');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
@@ -9,7 +10,6 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Trust proxy for HTTPS
 app.set('trust proxy', 1);
 
 // Force HTTPS
@@ -23,24 +23,24 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Persistent PostgreSQL session store
+// Session config with ssl fix
 app.use(session({
   store: new pgSession({
     pool: pool,
-    tableName: 'session'
+    tableName: 'session',
+    ssl: { rejectUnauthorized: false }
   }),
   name: 'piget.sid',
   secret: process.env.SESSION_SECRET || 'secret-key',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    maxAge: 1000 * 60 * 60 * 24 * 7,  // 7 days
+    maxAge: 1000 * 60 * 60 * 24 * 7,
     sameSite: 'lax',
     secure: true
   }
 }));
 
-// Middleware to protect pages
 function requireLogin(req, res, next) {
   if (!req.session.userId) return res.redirect('/login.html');
   next();
@@ -67,7 +67,7 @@ app.use('/css', express.static(path.join(__dirname, 'public', 'css')));
 app.use('/js', express.static(path.join(__dirname, 'public', 'js')));
 app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
 
-// Login handler
+// Login
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -82,12 +82,12 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Logout handler
+// Logout
 app.post('/logout', (req, res) => {
   req.session.destroy(() => res.redirect('/login.html'));
 });
 
-// Registration handler
+// Registration request
 app.post('/submit-request', async (req, res) => {
   const { username, password, age, discord, reason } = req.body;
   const hashed = await bcrypt.hash(password, 10);
@@ -102,7 +102,7 @@ app.post('/submit-request', async (req, res) => {
   }
 });
 
-// View all requests
+// View requests
 app.get('/requests', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM requests');
@@ -143,7 +143,7 @@ app.post('/deny/:id', async (req, res) => {
   }
 });
 
-// Get logged-in user info
+// Get current user info
 app.get('/api/user', async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Not logged in' });
   try {
@@ -155,5 +155,4 @@ app.get('/api/user', async (req, res) => {
   }
 });
 
-// Start server
 app.listen(PORT, () => console.log('🚀 Server running on port ' + PORT));
