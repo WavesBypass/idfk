@@ -1,4 +1,3 @@
-
 const express = require('express');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
@@ -10,6 +9,7 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// Trust proxy for HTTPS
 app.set('trust proxy', 1);
 
 // Force HTTPS
@@ -23,7 +23,7 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session config with connect-pg-simple
+// Persistent PostgreSQL session store
 app.use(session({
   store: new pgSession({
     pool: pool,
@@ -34,12 +34,13 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    maxAge: 1000 * 60 * 60 * 24 * 7,
+    maxAge: 1000 * 60 * 60 * 24 * 7,  // 7 days
     sameSite: 'lax',
     secure: true
   }
 }));
 
+// Middleware to protect pages
 function requireLogin(req, res, next) {
   if (!req.session.userId) return res.redirect('/login.html');
   next();
@@ -66,7 +67,7 @@ app.use('/css', express.static(path.join(__dirname, 'public', 'css')));
 app.use('/js', express.static(path.join(__dirname, 'public', 'js')));
 app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
 
-// Login
+// Login handler
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -81,18 +82,18 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Logout
+// Logout handler
 app.post('/logout', (req, res) => {
   req.session.destroy(() => res.redirect('/login.html'));
 });
 
-// Register (submit-request)
+// Registration handler
 app.post('/submit-request', async (req, res) => {
   const { username, password, age, discord, reason } = req.body;
   const hashed = await bcrypt.hash(password, 10);
   try {
     await pool.query(
-      'INSERT INTO requests (username, password, age, discord, reason, status) VALUES ($1, $2, $3, $4, $5, 'pending')',
+      "INSERT INTO requests (username, password, age, discord, reason, status) VALUES ($1, $2, $3, $4, $5, 'pending')",
       [username, hashed, age, discord, reason]
     );
     res.json({ success: true });
@@ -101,7 +102,7 @@ app.post('/submit-request', async (req, res) => {
   }
 });
 
-// View requests
+// View all requests
 app.get('/requests', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM requests');
@@ -142,7 +143,7 @@ app.post('/deny/:id', async (req, res) => {
   }
 });
 
-// Get current user info
+// Get logged-in user info
 app.get('/api/user', async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Not logged in' });
   try {
@@ -154,4 +155,5 @@ app.get('/api/user', async (req, res) => {
   }
 });
 
+// Start server
 app.listen(PORT, () => console.log('🚀 Server running on port ' + PORT));
