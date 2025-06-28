@@ -1,4 +1,3 @@
-
 const express = require('express');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
@@ -23,24 +22,24 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session config with ssl fix
+// Persistent session store (using pool, which already handles ssl)
 app.use(session({
   store: new pgSession({
     pool: pool,
-    tableName: 'session',
-    ssl: { rejectUnauthorized: false }
+    tableName: 'session'
   }),
   name: 'piget.sid',
   secret: process.env.SESSION_SECRET || 'secret-key',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    maxAge: 1000 * 60 * 60 * 24 * 7,
+    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
     sameSite: 'lax',
     secure: true
   }
 }));
 
+// Auth middleware
 function requireLogin(req, res, next) {
   if (!req.session.userId) return res.redirect('/login.html');
   next();
@@ -67,7 +66,7 @@ app.use('/css', express.static(path.join(__dirname, 'public', 'css')));
 app.use('/js', express.static(path.join(__dirname, 'public', 'js')));
 app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
 
-// Login
+// Login handler
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -82,12 +81,12 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Logout
+// Logout handler
 app.post('/logout', (req, res) => {
   req.session.destroy(() => res.redirect('/login.html'));
 });
 
-// Registration request
+// Registration handler
 app.post('/submit-request', async (req, res) => {
   const { username, password, age, discord, reason } = req.body;
   const hashed = await bcrypt.hash(password, 10);
