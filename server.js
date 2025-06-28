@@ -1,5 +1,7 @@
+
 const express = require('express');
 const session = require('express-session');
+const pgSession = require('connect-pg-simple')(session);
 const bcrypt = require('bcrypt');
 const path = require('path');
 const pool = require('./db');
@@ -8,41 +10,42 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// ✅ Required for correct cookie behavior behind HTTPS proxy
 app.set('trust proxy', 1);
 
-// ✅ Redirect all HTTP traffic to HTTPS
+// Force HTTPS
 app.use((req, res, next) => {
   if (!req.secure) {
-    return res.redirect(`https://${req.headers.host}${req.url}`);
+    return res.redirect('https://' + req.headers.host + req.url);
   }
   next();
 });
 
-// ✅ Body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ HTTPS session config
+// Session config with connect-pg-simple
 app.use(session({
+  store: new pgSession({
+    pool: pool,
+    tableName: 'session'
+  }),
   name: 'piget.sid',
   secret: process.env.SESSION_SECRET || 'secret-key',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+    maxAge: 1000 * 60 * 60 * 24 * 7,
     sameSite: 'lax',
-    secure: true                     // ✅ only works on HTTPS
+    secure: true
   }
 }));
 
-// ✅ Protect routes middleware
 function requireLogin(req, res, next) {
   if (!req.session.userId) return res.redirect('/login.html');
   next();
 }
 
-// ✅ Public routes
+// Public pages
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/login.html', (req, res) => {
   if (req.session.userId) return res.redirect('/stats.html');
@@ -50,20 +53,20 @@ app.get('/login.html', (req, res) => {
 });
 app.get('/register.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'register.html')));
 
-// ✅ Protected pages
-app.get('/stats.html', requireLogin, (req, res) => res.sendFile(path.join(__dirname, 'public', 'stats.html')));
-app.get('/forms.html', requireLogin, (req, res) => res.sendFile(path.join(__dirname, 'public', 'forms.html')));
-app.get('/inventory.html', requireLogin, (req, res) => res.sendFile(path.join(__dirname, 'public', 'inventory.html')));
-app.get('/settings.html', requireLogin, (req, res) => res.sendFile(path.join(__dirname, 'public', 'settings.html')));
-app.get('/market.html', requireLogin, (req, res) => res.sendFile(path.join(__dirname, 'public', 'market.html')));
-app.get('/leaderboard.html', requireLogin, (req, res) => res.sendFile(path.join(__dirname, 'public', 'leaderboard.html')));
+// Protected pages
+const protectedPages = ['stats', 'forms', 'inventory', 'settings', 'market', 'leaderboard'];
+protectedPages.forEach(page => {
+  app.get(`/${page}.html`, requireLogin, (req, res) =>
+    res.sendFile(path.join(__dirname, 'public', `${page}.html`))
+  );
+});
 
-// ✅ Static assets
+// Static assets
 app.use('/css', express.static(path.join(__dirname, 'public', 'css')));
 app.use('/js', express.static(path.join(__dirname, 'public', 'js')));
 app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
 
-// ✅ Login handler
+// Login
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -78,21 +81,18 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// ✅ Logout handler
+// Logout
 app.post('/logout', (req, res) => {
-  req.session.destroy(() => {
-    res.redirect('/login.html');
-  });
+  req.session.destroy(() => res.redirect('/login.html'));
 });
 
-// ✅ Registration (unchanged)
+// Register (submit-request)
 app.post('/submit-request', async (req, res) => {
   const { username, password, age, discord, reason } = req.body;
   const hashed = await bcrypt.hash(password, 10);
   try {
     await pool.query(
-      `INSERT INTO requests (username, password, age, discord, reason, status)
-       VALUES ($1, $2, $3, $4, $5, 'pending')`,
+      'INSERT INTO requests (username, password, age, discord, reason, status) VALUES ($1, $2, $3, $4, $5, 'pending')',
       [username, hashed, age, discord, reason]
     );
     res.json({ success: true });
@@ -101,7 +101,7 @@ app.post('/submit-request', async (req, res) => {
   }
 });
 
-// ✅ View all requests
+// View requests
 app.get('/requests', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM requests');
@@ -111,7 +111,7 @@ app.get('/requests', async (req, res) => {
   }
 });
 
-// ✅ Approve request
+// Approve request
 app.post('/approve/:id', async (req, res) => {
   const id = req.params.id;
   try {
@@ -131,7 +131,7 @@ app.post('/approve/:id', async (req, res) => {
   }
 });
 
-// ✅ Deny request
+// Deny request
 app.post('/deny/:id', async (req, res) => {
   const id = req.params.id;
   try {
@@ -142,7 +142,7 @@ app.post('/deny/:id', async (req, res) => {
   }
 });
 
-// ✅ Get current user info
+// Get current user info
 app.get('/api/user', async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Not logged in' });
   try {
@@ -154,7 +154,4 @@ app.get('/api/user', async (req, res) => {
   }
 });
 
-// ✅ Start server
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log('🚀 Server running on port ' + PORT));
