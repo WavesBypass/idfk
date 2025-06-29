@@ -1,3 +1,4 @@
+
 const express = require('express');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
@@ -22,7 +23,7 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Persistent session store (using pool, which already handles ssl)
+// Session config using pool
 app.use(session({
   store: new pgSession({
     pool: pool,
@@ -33,13 +34,12 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+    maxAge: 1000 * 60 * 60 * 24 * 7,
     sameSite: 'lax',
     secure: true
   }
 }));
 
-// Auth middleware
 function requireLogin(req, res, next) {
   if (!req.session.userId) return res.redirect('/login.html');
   next();
