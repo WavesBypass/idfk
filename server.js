@@ -23,11 +23,12 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session config using pool
+// Session config using pool and old fix (ssl in store)
 app.use(session({
   store: new pgSession({
     pool: pool,
-    tableName: 'session'
+    tableName: 'session',
+    ssl: { rejectUnauthorized: false }
   }),
   name: 'piget.sid',
   secret: process.env.SESSION_SECRET || 'secret-key',
@@ -66,7 +67,7 @@ app.use('/css', express.static(path.join(__dirname, 'public', 'css')));
 app.use('/js', express.static(path.join(__dirname, 'public', 'js')));
 app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
 
-// Login handler
+// Login
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -81,12 +82,12 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Logout handler
+// Logout
 app.post('/logout', (req, res) => {
   req.session.destroy(() => res.redirect('/login.html'));
 });
 
-// Registration handler
+// Registration request
 app.post('/submit-request', async (req, res) => {
   const { username, password, age, discord, reason } = req.body;
   const hashed = await bcrypt.hash(password, 10);
